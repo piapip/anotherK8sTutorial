@@ -1,0 +1,52 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: db-policy
+  namespace: default
+spec:
+  # if there's just podSelector in the spec
+  # this policy will block all kind of access to the pod with the label.``
+  podSelector:
+    matchLabels:
+      role: db
+  policyTypes:
+    - Ingress
+    # - Egress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 3306
+      from:
+      # using this for the external source (not within the k8s cluster)
+      # (1)
+      # - ipBlock:
+      #   cidr: 172.17.0.0/16
+      #   except: 
+      #   - 172.17.1.0/24
+      # # without podSelector, all the ports in the namespace can get access
+      # (2)
+      # - namespaceSelector:
+      #   matchLabels:
+      #     project: myproject
+      # # without namespaceSelector, all the pods (no matter the namespace) with good label can get access
+      # (3)
+      # - podSelector:
+      #   matchLabels:
+      #     role: backend-pod
+      # they can be combined too
+      # (4)
+      - namespaceSelector:
+          matchLabels:
+            project: myproject
+        podSelector:
+          matchLabels:
+            role: backend-pod
+      # if I enable all of them the rule is: (1) or (2) or (3) or [(4.1) AND (4.2)]
+      
+  # egress:
+  #   - to:
+  #       - ipBlock:
+  #           cidr: 10.0.0.0/24
+  #     ports:
+  #       - protocol: TCP
+  #         port: 5978

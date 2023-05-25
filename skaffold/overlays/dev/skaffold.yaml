@@ -1,0 +1,19 @@
+# instead of making skaffold in the code-base/javascript folder
+# we can: (though, I don't think this is a good way to do it)
+# Also, to run this thing, we'll need the docker to be ready.
+# this file seems redundant lol.
+apiVersion: skaffold/v4beta1
+kind: Config
+metadata:
+  name: js-build
+
+manifests:
+  kustomize:
+    paths:
+      - .  
+
+portForward:
+- resourceType: Service
+  resourceName: dev-dov
+  port: 5000
+  localPort: 8080

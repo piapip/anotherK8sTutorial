@@ -1,0 +1,30 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - "../../code-base/javascript/manifest"
+
+commonLabels:
+  env: dev
+
+namePrefix: dev-
+
+configMapGenerator:
+  - name: dov-config
+    literals:
+      - INSTANCE_NAME="another hellooooooooooo, world"
+  # - We stop at configMapGenerator because we can't get the pod running without configmap
+
+images:
+  - name: dov
+    newName: public.ecr.aws/h0v6f2t9/dov
+    newTag: v1-fce9727
+
+replicas:
+- name: dov
+  count: 2
+
+# if kustomize doesn't have the specific option that we need, say resource
+# we can specify how to add resource in the add-resource.yaml and link it here
+patchesStrategicMerge:
+  - "./add-resource.yaml"

@@ -1,0 +1,16 @@
+# WRONG!!! There's no connection between a PersistentVolumeClaim and a PersistentVolume in the settings file.
+# Because the system will try to find the best match for the two.
+
+# Well kinda, we can connect them by using PVC's spec.volumeName.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: example-pv
+spec:
+  capacity:
+    storage: 100Gi
+  accessModes:
+  - ReadWriteOnce
+  awsElasticBlockStore:
+    volumeID: <volume-id>
+    fsType: ext4

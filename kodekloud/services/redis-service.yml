@@ -1,0 +1,15 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: redis # this is very important!!! Otherwise we can't performing linking, as it's hardcode in the code
+  labels:
+    name: redis-service
+    app: demo-app
+spec:
+  selector:
+    name: redis-pod
+    app: demo-app
+  type: ClusterIP
+  ports:
+  - port: 6379
+    targetPort: 6379

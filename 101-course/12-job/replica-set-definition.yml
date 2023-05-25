@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: job-replicaset
+  labels:
+    type: job
+spec:
+  template:
+    metadata:
+      name: job-pod
+    spec:
+      containers:
+      - name: ubuntu
+        image: ubuntu
+        command: ['expr', '3', '+', '2']
+        # so now this ReplicaSet will act like a Job
+        restartPolicy: Never
+  replicas: 3
+  selector:
+    matchLabels:
+      name: job-pod

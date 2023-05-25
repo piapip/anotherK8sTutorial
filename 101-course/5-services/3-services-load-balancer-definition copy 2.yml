@@ -1,0 +1,10 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name:  otherapp-service
+spec:
+  type:  LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 80
+    nodePort: 30008

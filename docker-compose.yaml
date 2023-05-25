@@ -1,0 +1,21 @@
+version: '3'
+services:
+  my-app:
+    image: public.ecr.aws/r4f1b2w1/my-app:v1.0.3
+    ports:
+    - 3000:3000
+  container_name_mongo_db:
+    image: mongo
+    ports:
+      - 27017:27017
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=mongoadmin
+      - MONGO_INITDB_ROOT_PASSWORD=secret
+    volumes:
+      # Do not add space like "mongo-initiate-data: /data/db"
+      - mongo-data:/data/db
+      # This differs for each type of db.
+      # - mysql:/var/lib/mysql
+volumes:
+  mongo-data:
+    driver: local

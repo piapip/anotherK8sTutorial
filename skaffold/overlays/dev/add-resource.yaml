@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  # name is important
+  name: dov
+spec:
+  template:
+    spec:
+      containers:
+      # this name is important too
+      - name: dov
+        # no need to specify other things
+        # just enough so kustomize know how to trace to the destination.
+        resources:
+          requests:
+            cpu: "128m"
+            memory: "256Mi"
+          limits:
+            cpu: "256m"
+            memory: "512Mi"
+        

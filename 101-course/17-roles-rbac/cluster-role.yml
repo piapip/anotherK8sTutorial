@@ -1,0 +1,17 @@
+apiVersion: rbac.authorization.k8s.io/v1
+# ClusterRole is for stuff under the management of Cluster.
+# Note: it can be used for Namespace scope stuff too, but that's not easy to manage.
+kind: ClusterRole
+metadata:
+  name: secret-reader
+  # labels:
+  #   # Add these permissions to the "admin" and "edit" default roles.
+  #   rbac.authorization.k8s.io/aggregate-to-admin: "true"
+  #   rbac.authorization.k8s.io/aggregate-to-edit: "true"
+rules:
+- apiGroups: ["stable.example.com"]
+  resources: ["crontabs"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]

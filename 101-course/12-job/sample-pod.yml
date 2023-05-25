@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: job-pod
+spec:
+  containers:
+  - name: ubuntu
+    image: ubuntu
+    command: ['expr', '3', '+', '2']
+  # This is the reason why the pod keeps getting built back up after finishing its job, this parameter's default value is Always.
+  # restartPolicy: Always
+  # set it like this so it won't restart after done
+  # restartPolicy: Never
+

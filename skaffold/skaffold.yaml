@@ -1,0 +1,9 @@
+apiVersion: skaffold/v4beta1
+kind: Config
+metadata:
+  name: the-entire-micro-service
+
+requires:
+# - path: ./code-base/java # I disable this because I don't want to care about jib and java stuff.
+- path: ./code-base/javascript
+

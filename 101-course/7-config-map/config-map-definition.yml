@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otherapp-configmap
+  labels:
+    app: otherapp 
+data:
+  # must have `"` for the value
+  my-key: "my-value"
+  my-otherkey: "my-other-value"
+  APP_COLOR: "blue"
+  APP_MODE: "prod"

@@ -1,0 +1,23 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: myapp-blue
+  labels:
+    app: myapp
+    type: front-end
+spec:
+  replicas: 10
+  template:
+    metadata:
+      name: myapp-pod
+      labels:
+        version: v1
+        commonLabel: common
+    spec:
+      containers:
+      - name: app-container
+        image: nginx:1.7.1
+  selectors:
+    matchLabels:
+      version: v1
+      commonLabel: common

@@ -1,0 +1,24 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: myapp-canary
+  labels:
+    app: myapp
+    type: front-end
+spec:
+  # replicas: 1 # during the test phase, we only want a small amount of traffic routed to this deployments, so 1 replica only.
+  replicas: 10
+  template:
+    metadata:
+      name: myapp-pod
+      labels:
+        version: v2
+        commonLabel: common
+    spec:
+      containers:
+      - name: app-container
+        image: nginx:latest
+  selectors:
+    matchLabels:
+      version: v2
+      commonLabel: common

@@ -1,0 +1,10 @@
+# No need to run this file.
+# Normally, k8s's scheduler will schedule pod to node automactically.
+apiVersion: v1
+kind: Binding
+metadata:
+  name: nginx
+target:
+  apiVersion: v1
+  kind: Node
+  name: node01

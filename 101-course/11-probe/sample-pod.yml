@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: web-pod
+spec:
+  containers:
+  - name: ubuntu
+    image: ubuntu
+    ports:
+    - containerPort: 8080
+    # readinessProbe:
+    #   # for web application
+    #   httpGet:
+    #     path: /api/ready
+    #     port: 8080
+    #   # for db
+    #   tcpSocket:
+    #     port: 3306
+    #   # using custom script
+    #   exec:
+    #     command:
+    #     - cat
+    #     - /tmp/healthy
+    #   # some extra params
+    #   initialDelaySeconds: 5
+    #   periodSeconds: 5
+    # # livenessProbe is basically the same as the readniness probe
+    # # even with the same extra param.
+    # livenessProbe:
+    #   # for web application
+    #   httpGet:
+    #     path: /api/ready
+    #     port: 8080
+    #   # for db
+    #   tcpSocket:
+    #     port: 3306
+    #   # using custom script
+    #   exec:
+    #     command:
+    #     - cat
+    #     - /tmp/healthy

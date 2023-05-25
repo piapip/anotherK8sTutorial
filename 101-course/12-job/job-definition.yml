@@ -1,0 +1,23 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: plus
+spec:
+  # this is like replicas
+  completions: 3
+  # 3 jobs run at a time. Default is 1, meaning sequential, one done then another starts.
+  #
+  # if this value is greater than the completion's value then it will become the completion.
+  #
+  # the number of running task in parallel cannot be greater than the potential success count.
+  # EX: completion = 3, success = 1, then only 2 new pods can be ran in parallel
+
+  parallelism: 3
+  template:
+    spec:
+      containers:
+      - name: ubuntu
+        image: ubuntu
+        command: ['expr', '3', '+', '2']
+      restartPolicy: Never
+  backoffLimit: 4

@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: otherapp-rc
+  labels:
+    app: otherapp
+    type: front-end
+spec:
+  template:
+    # copy from pod-definition.yml
+    metadata:
+      name: otherapp-pod
+      labels:
+        app: otherapp
+        type: front-end
+    spec:
+      containers:
+      - name: nginx-container
+        image: nginx
+        ports:
+        - containerPort: 8080
+  replicas: 3

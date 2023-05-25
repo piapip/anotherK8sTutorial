@@ -1,0 +1,22 @@
+apiVersion: rbac.authorization.k8s.io/v1
+# Role is for stuff under the management of Namespace
+kind: Role
+metadata:
+  namespace: default
+  name: pod-reader
+rules:
+- apiGroups: [""] # "" indicates the core API group
+  resources: ["pods"]
+  verbs: ["get", "watch", "list"]
+  # To know the condition in the apiGroups, check here:
+  # kubectl api-resources (grep the thing to find)
+  # if there's a v1 or v1alpha at the end of the apiversion, remove it.
+  # because v1 and v1alpha is the apiVersion.
+- apiGroups: ["apps"] # "" indicates the core API group
+  resources: ["deployments"]
+  verbs: ["get", "watch", "list"]
+  # say, if I want to limit access to only pod "a" and "b", then I do this.
+  # resourceNames: ["a", "b"]
+- apiGroups: [""]
+  resources: ["ConfigMap"]
+  verbs: ["create"]

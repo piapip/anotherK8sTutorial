@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: web-pod
+spec:
+  containers:
+  - name: ubuntu
+    image: ubuntu
+    ports:
+    - containerPort: 8080
+  # # normally, pod already has a default serviceAccount of the cluster it's belonged to.
+  # # this is optional
+  # # And we can't edit the serviceAccountName once deployed, so have to recreate if we want to edit.
+  # # But we can edit the pod's template inside a deployed Deployment.
+  # # because anychange to the pod's template will result into Deployment recreate the pod.
+  # serviceAccountName: sameple-service-account
+  
+  # # do this if we don't want to mount any serviceAccount automatically.
+  # automountServiceAccountToken: false

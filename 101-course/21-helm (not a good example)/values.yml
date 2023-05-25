@@ -1,0 +1,2 @@
+image: nginx:1.7.1
+randomName: myapp-blue
