@@ -1,0 +1,152 @@
+Host only:
+- All the VM inside will send the requests to the outside using their "Host only" network's IP address.
+- Can't connect to the external service.
+- No external service can connect to any of the VM.
+For example:
+
+┌──────────────────────────────────┐
+|       Mother's IP Address        |
+|           192.168.1.10           |
+|                                  |
+|   ┌─────────────────────────┐    |
+|   |       192.168.5.1       |    |
+|   |            |            |    |      These 192.168.5.x can communicate with each other.
+|   |            |            |    |      None of the IP 192.168.5.x can call other source outside.
+|   |    Host-only Network    |    |      No one outside can call these 192.168.5.x, even the Mother.
+|   |       192.168.5.0       |    |      
+|   |            |            |    |
+|   |       192.168.5.2       |    |
+|   |            |            |    |
+|   |       192.168.5.3       |    |
+|   |            |            |    |
+|   |       192.168.5.4       |    |
+|   |            |            |    |
+|   |       192.168.5.5       |    |
+|   └─────────────────────────┘    |
+|                                  |
+└──────────────────────────────────┘
+
+=======================================================================================================================================================================================================
+
+NAT Network: (NAT and NAT network are 2 different things)
+- All the VM inside will send the requests to the outside using the mother's IP address.
+- Can connect to the external service because it's doing that on the behalf of the mother.
+
+┌──────────────────────────────────┐
+|       Mother's IP Address        |
+|           192.168.1.10           |
+|                                  |
+|   ┌─────────────────────────┐    |					These 192.168.5.x can communicate with each other.
+|   |       192.168.5.1       |    |					These 192.168.5.x can communicate to the external source, when they do, the NAT will translate 192.168.5.2 (example)
+|   |            |            |    |					to the Mother IP's Address, which is 192.168.5.x --> 192.168.1.10.
+|   |            |            |    |					The external source knows nothing about this NAT. When external source returns packages back to the Mother IP's address, 
+|   |    Host-only Network    |    |                   		NAT will translate the packages and then forward the packages to the corrent IP Address.
+|   |       192.168.5.0       |    |     ┌─────────────┐
+|   |            |            |    |     |     LAN     |     ┌────┐
+|   |       192.168.5.2       |    |─────|             |─────│ DB │
+|   |            |            |    |     | 192.168.0.1 |     └────┘
+|   |       192.168.5.3       |    |     └─────────────┘
+|   |            |            |    |
+|   |       192.168.5.4       |    |
+|   |            |            |    |
+|   |       192.168.5.5       |    |
+|   └─────────────────────────┘    |
+|                                  |
+└──────────────────────────────────┘
+
+=======================================================================================================================================================================================================
+
+NAT:
+- Kinda similar to NAT Network.
+- But these 192.168.5.x CANNOT communicate with each other!
+
+=======================================================================================================================================================================================================
+
+Bridge Network: (BN)
+- It's always there, only need the VM to connect to it. Once connect, it'll give the VM a distinct LAN's IP Address, so the external source can send the requests to the VM directly.
+
+Like this:
+ ┌─────────────┐     ┌─192.168.5.1 (192.168.0.11)
+ │          ┌──┴─┐   │─192.168.5.2 (192.168.0.12)
+ │ LAN      │ BN │───┤─192.168.5.3 (192.168.0.13)
+ │          └──┬─┘   │─192.168.5.4 (192.168.0.14)
+ └─────────────┘     └─192.168.5.5 (192.168.0.15)
+
+=======================================================================================================================================================================================================
+
+DNS
+
+Initially, if we want to access to a web, we do this: 192.168.... <<< This jargon is too hard to remember, so we invent DNS to make it easier to remember.
+We store these IP Address to /etc/hosts: like
+192.168.1.11: web1
+192.168.1.12: web2
+
+So we can use web1, web2 instead of the IP Address. When we call these name, the system will look up the /etc/hosts and redirect to the correct IP Address.
+Problem: This means each computer must have 1 copy of these /etc/hosts, says, one day, web1 change from 192.168.1.11 to 192.168.2.11, we will have to update every single /etc/hosts file. Which is not good.
+
+Then we store this file on DNS Server, so our computer will look up the host's name on that server instead of the /etc/hosts file. Every hosts has this file to show where the DNS Server is: /etc/resolv.conf: like:
+nameserver 192.168.1.100 # When receive a website's name, it will look up in this 192.168.1.100 first.
+nameserver 8.8.8.8 # Then it'll look up in this 8.8.8.8. "8.8.8.8" is Google's namespace, knows about all website on the Internet. 
+
+For personal uses, /etc/hosts still exists. Priority: our computers will look up the host's name in /etc/hosts first, then in the DNS Server. (This is the default priority, it can be changed)
+
+There's thing called search: like:
+
+nameserver 192.168.1.100
+nameserver 8.8.8.8
+search     company-web.com
+
+With that search, when we "ping personal", and there's a "personal.company-web.com" in our dns server, it'll be able to ping the correct IP Address that belongs to the "personal.company-web.com".
+*Other people without the "search     company-web.com" will have to call the entire personal.company-web.com if they want to access. Kind weird now come to think of it.
+
+=======================================================================================================================================================================================================
+
+Switching
+
+To connect System A and System B, we use a switch 1.
+To connect System C and System D, we use a switch 2.
+
+Problem: How to connect System B using Switch 1 to System C using Switch 2?
+We use a Router. Think of a router is a like a very intelligent device with many network ports.
+
+Problem: But how can System B detect the Router? The Router is just like another device, like System A.
+We use Gateway. If Network is a room then a Gateway is the door. The system needs to know where the door is.
+We do this: ip route add (Switch's IP)/(Some weird number idk) via (Router's IP).
+Like: ip route add 192.168.1.0/24 via 192.168.1.1
+
+This will need to be done on every System. If system B wants to connect to system C, it has to run that. And if system C wants to connect to system B, it has to run that again on itself.
+
+Problem: But there are a lot of System I want to connect to. How can I add them all?
+Use default. This: ip route add default via (Router's IP).
+This way, any request goes to the external source will go through this Router's IP. This Router will become the default Gateway.
+
+=======================================================================================================================================================================================================
+
+Why can you call curl wonderful:30080 and it works?
+
+
+There is a NodePort Service wonderful which listens on port 30080 . It has the Pods of Deployment of app "wonderful" as selector.
+
+We can reach the NodePort Service via the K8s Node IP: curl 172.30.1.2:30080
+
+# k get nodes (the node that the pod is running on) | grep -i ip
+flannel.alpha.coreos.com/public-ip: 172.30.1.2
+...
+type: InternalIP (# I don't understand this fully yet, this is just speculation)
+
+# k describe nodes controlplane | grep -i ip
+	flannel.alpha.coreos.com/public-ip: 172.30.1.2
+	...
+InternalIP:  172.30.1.2 (probably becasue of the type setting with this one, the node is hitting 172.30.1.2)
+
+And because of an entry in /etc/hosts we can call: curl wonderful:30080
+
+# cat /etc/hosts
+172.30.1.2 wonderful
+
+=======================================================================================================================================================================================================
+
+
+
+
+

@@ -1,0 +1,37 @@
+THIS IS NOT errgroup
+
+group has 2 things in its params, the execution function and the terminate function. If there's an execution process returns an error after the execution, it will loop through all other process and call the terminate funcion
+
+type Group struct {
+  actors []actor
+}
+
+type actor struct {
+  execution func() error
+  terminate func(error)
+}
+
+func (g *Group) Run() error {
+  // if there's no actor in the groups, return nil
+  
+  // make an error channel listening for error (it must has the caps of the actors, we will use the cap for the terminate process)
+  
+  // Run all the actors concurrently (in go channels)
+  // go func() {} (
+  //   // catch error if receive
+  //   errorChannel <- error from the executing function
+  // )
+  // 
+
+  // wait for the error coming out of the error channels (when given, save that error to somewhere, we will return it).
+  
+  // then signal all the channels to stop by using the terminate function.
+  
+  // wait for all actor to stop (this step is weird, because the real code waits for error??)
+  // Answer: Not weird, if the actor is closed, then the actor's execution function will always return an error, therefore there's always an error return for each actor
+  // for i := 1; i < cap(errors); i++ {
+  //   <- errorChannel
+  // }
+  
+  // return the first error get.
+}

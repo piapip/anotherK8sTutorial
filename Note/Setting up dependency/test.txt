@@ -1,0 +1,7 @@
+setting up all the possible function then try to find a way close them all channel.
+
+Then we need to orchestrate, when 1 is closed, close all the others. There are tools for this orchestrating task.
+For example: tomb, errgroup, group. 
+
+Say we need a system that has these 4 things running: HTTP API, Cronjob, Logging, and a Special Service.
+

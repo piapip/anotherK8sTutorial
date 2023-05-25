@@ -1,0 +1,185 @@
+=======================================================================================================================================================================================================
+
+Scheduler (responsible for identifying the right node to place a container on based on the container's resource requirement, the worker node's capacity, other contraints, distributing works or containers across multiple nodes, ...)
+
+Normally, each pod has nodename set to nothing by default. K8s will update the node name automatically when creating manifest file.
+The scheduler will go to all the pods, look for those without the nodename. They are the candidate for the scheduling. It will identify the right node for the pods by running some kind of algorithm.
+Then it will bind the pod to the node by creating a binding object. (like adding "nodeName: node02" to the pod's manifest file, or having a "Binding" object)
+
+Without the scheduler to monitor and schedule node, the node will forever be in the pending state. We will have to assign pod to node manually.
+
+(If the pod is in pending state, and there's no node in the "kubectl describe ...", then it means that there's no scheduler).
+
+After deployed, the pod's nodeName can't not be updated. If we really want to update the nodeName, then we can create a binding object.
+``` apiVersion: v1, kind: Binding, metadata, target: ...```
+
+=======================================================================================================================================================================================================
+
+Label and selector: a way to group thing together (so we can do things like Development/ReplicaSet's selector's matchLabel or Service's selector)
+- Labels are specified in the metadata's labels (there's an "s" because 1 object can have many labels (properties)).
+
+Annotation: marking other details for info purpose. E.x: name, version, build info, ...
+
+=======================================================================================================================================================================================================
+
+Taints and tolerants: to restrain what pods are placed on what nodes.
+
+Analogy: to prevent bug landing on the person, we use spray, we put a layer of taint wrapping us. Now 2 cases:
+- If the bug cannot resist the spray (taint), or we can say, the bug is intolerant of the taint, the taint will send that bug away.
+- If the bug CAN resist the spray (taint), or we can say, the bug's tolerant to the smell of the spray, the bug can approach and land on the person.
+So 2 factors: the taint on the person and the tolerant of the bug to that taint.
+
+In k8s, the person is a node, and the bugs are the pods.
+Taints and tolerants cannot assure that the desired pod will land on a certain node. It can only make sure that if there's a pod landing on a node, then that pod is compatible.
+
+The Master node is tainted automatically when k8s setup stuff to prevent pods getting scheduled on the master node.
+
+Node selectors: say, we have 3 nodes, with 3 different sizes and capabilities. And we have multiple pods. We will want to provision pods that involve heavy work-load to the largest node, pods that involve light work-load to smaller nodes. So on and so forth. Adding the nodeSelectors in the pod-definition file can help with this problem. Also, nodeSelectors feels awfully lot like taints and tolerants. This selector only has AND requirements, no OR. So if we want to provision pods in Medium or Large node, we can't do that with this.
+
+Node affinity: Help with the OR problem above, provision pods in Medium or Large node. Very complicated to setup though. We have a bunch of operators for this thing. Like "In", "NotIn", "Exists", ...
+Seems like only 6 operators: "In", "NotIn", "Exists", "DoesNotExist", "Lt", or "Gt".
+For the "Exists" operator, sometimes, when we have too many small pods, we can set label to only large + medium pods, and leave the small pods empty, and the "Exists" operator will do the trick.
+
+The long ass sentence is the type of the affinity:
+Avaiable:
+requiredDuringSchedulingIgnoredDuringExecution
+- [SCHEDULE]  this pod must be placed on the node that meets all requirements during scheduling.
+- [EXECUTION] even if there are additional changes, the pod will ignore all the rules during execution.
+prefferedDuringSchedulingIgnoredDuringExecution
+- [SCHEDULE]  this pod will be placed anywhere if there's no satisfying node during scheduling.
+- [EXECUTION] 
+
+Planned:
+requiredDuringSchedulingRequiredDuringExecution
+- [SCHEDULE]  this pod must be placed on the node that meets all requirements during scheduling.
+- [EXECUTION] if there are additional changes during execution, and the pod no longer satisfy all the requirement, it will be killed.
+
+
+Compare: so the 2 things sound similar, (Taints and tolerants) and (Selectors and affinity)
+The 2 things compliment each other. Example: Try to schedule this:
+╔═══════════╗   ╔═════════╗   ╔══════════╗  ╔════════════╗   ╔════════════╗   ╔════════════╗
+║ Pod Green ║   ║ Pod Red ║   ║ Pod Blue ║  ║ Pod Grey 1 ║   ║ Pod Grey 2 ║   ║ Pod Grey 3 ║
+╚═══════════╝   ╚═════════╝   ╚══════════╝  ╚════════════╝   ╚════════════╝   ╚════════════╝
+╔════════════╗  ╔═══════════╗ ╔══════════╗  ╔═════════════╗  ╔═════════════╗  ╔═════════════╗
+║ Node Green ║  ║ Node Blue ║ ║ Node Red ║  ║ Node Grey 1 ║  ║ Node Grey 2 ║  ║ Node Grey 3 ║
+╚════════════╝  ╚═══════════╝ ╚══════════╝  ╚═════════════╝  ╚═════════════╝  ╚═════════════╝
+
+- If only taints and tolerants: it will make sure that the nodes always contain the right pods, but it can't make sure that the pods will always land on the right node (like the node without taint).
+╔════════════╗  ╔═══════════╗ ╔══════════╗  ╔═════════════╗  ╔═════════════╗  ╔═════════════╗
+║ Node Green ║  ║ Node Blue ║ ║ Node Red ║  ║ Node Grey 1 ║  ║ Node Grey 2 ║  ║ Node Grey 3 ║
+║            ║  ║           ║ ║          ║  ║             ║  ║             ║  ║             ║
+║1.Pod Green ║  ║           ║ ║2.Pod Red ║  ║ 3. Pod Blue ║  ║4. Pod Grey 1║  ║5. Pod Grey 2║
+║            ║  ║           ║ ║          ║  ║6. Pod Grey 3║  ║             ║  ║             ║
+╚════════════╝  ╚═══════════╝ ╚══════════╝  ╚═════════════╝  ╚═════════════╝  ╚═════════════╝
+- If only affinity: it will make sure that the pods always land on the right nodes, but it can't make sure that the node will not contain junk pods. (there's a chance that Pod grey will land on node green).
+╔════════════╗  ╔═══════════╗ ╔══════════╗
+║ Node Green ║  ║ Node Blue ║ ║ Node Red ║
+║            ║  ║           ║ ║          ║
+║1.Pod Green ║  ║3. Pod Blue║ ║2.Pod Red ║
+║  Pod Grey  ║  ║           ║ ║          ║
+╚════════════╝  ╚═══════════╝ ╚══════════╝
+
+- Combination: taint the node first. Apply the tolerants to the pods. Then add affinity to the pods. ==> No more accident.
+╔════════════╗  ╔═══════════╗ ╔══════════╗  ╔═════════════╗  ╔═════════════╗  ╔═════════════╗
+║ Node Green ║  ║ Node Blue ║ ║ Node Red ║  ║ Node Grey 1 ║  ║ Node Grey 2 ║  ║ Node Grey 3 ║
+║            ║  ║           ║ ║          ║  ║             ║  ║             ║  ║             ║
+║1.Pod Green ║  ║3. Pod Blue║ ║2.Pod Red ║  ║   Pod Grey  ║  ║   Pod Grey  ║  ║   Pod Grey  ║
+╚════════════╝  ╚═══════════╝ ╚══════════╝  ╚═════════════╝  ╚═════════════╝  ╚═════════════╝
+
+=======================================================================================================================================================================================================
+
+Resource Requirement and limits,
+
+There're 3 kind of resources: CPU, Mem, Disk. When scheduling, it will look for a node with sufficient resource to place the pod. If there's no existing node can supply enough resource, the pod will be in the Pending state.
+
+By default, k8s doesn't have any standard value on how much a pod may consume or the upper limit so it can be tough for the scheduler to do the scheduling.
+
+So it's a good practice to always set up those value in the namespace before setting up the pods!
+
+But assumes that port will require 0.5 CPU and 256 Mi (Mi is not M, Mi = MB) << The resource requests of a container, the minimum amound of CPU or memory requested by the container. When scheduling, the scheduler will schedule based on this number.
+We can adjust that value by adding the "resources" info in the pod-def file.
+The CPU here can be as low as 0.01 or 1m, but not lower than that.
+1 CPU means 1 vCPU for AWS, 1 GCP Core, 1 Azure Core, or 1 Hyperthread.
+
+Normally, docker doesn't have a limit on how much resource it can consume. This means that 1 pod can drain out all of the existing resource then leave nothing for other pods. 
+To prevent this, k8s set the upper limit is 1 CPU and 512 Mi per container by default. We can adjust these values.
+
+NOTE! The CPU cannot be overloaded (pass the limit points), but the mem can be overloaded. But if the pod tries to consume more memory than its limit constantly, it will be killed.
+
+=======================================================================================================================================================================================================
+
+Daemon Sets:
+
+It's like ReplicaSet, help to deploy multiple instance of pods. But it runs 1 copy of pods on each node in the cluster.
+- Whenever a new node is added to the cluster, another copy of pod will be deployed on that cluster.
+- Whenever a node is removed, the copy of pod on that node is also removed.
+
+Usecase for Daemon Sets: Example:
+- if we want to deploy a monitoring agent or a log collector on each node in the cluster so we can monitor our cluster better. (A pod that is a must for every node)
+- or the example of kube-proxy, or networking (WeaveNet), it has to be deployed on every node.
+
+DaemonSets is very very similar to ReplicaSet, the only difference in the definition file is the "kind" in the file.
+
+When scheduling, 
+- in the earlier version, DeamonSets set the nodeName in the pod-definition file to assign pod to the node.
+- currently, it's using node affinity to make sure that the right pod go to the right node.
+
+=======================================================================================================================================================================================================
+
+Static POD
+
+Say, if we have no kube-apiserver to passing commands, no etcd to store data, no scheduler to perform scheduling and no controller to tell which pod will go to this node, not even a buddy node. You are a captain kubelete on a lonely ship in the sea by yourself.
+
+Captain kubelete can actually manage the ship (host) independently, it can still create PODs. Normally, it's kube-apiserver who gives kubelete the details of the pods that need to be created.
+By if the captain is alone, it can grab the data of the PODs in a static source. (like /etc/kubernetes/manifests)
+
+We can add the pod-definition files to that static source. The kubelete will:
+- update the pods if the file is updated.
+- make sure that the pods stay alive.
+- if the definition file is removed, then the respective pod is also removed.
+
+These PODs are static POD. (NOTE: there's no Static ReplicaSet or Static Deployment, there's only Static PODs).
+
+In kubeadm's setting, the path to kubelet will be set up here:
+1. --pod-manifest-path in kubelet.service to set up the Static POD directory.
+2. --config=(pod-definition file path) also in kubelet.service.
+
+In kubelet settings, find the source of the static PODs in `staticPodPath`
+
+
+*run "docker ps" to check for Static POD. Remember when you are alone, there's no kube-apiserver to help you translating those kubectl command.
+
+These static POD can be viewed normally by kubectl (if it's active), but kubectl can't edit or delete them. Must update the files in the static source from the node manifest folder for that.
+
+Main usecases: to deploy controlplane, kube-apiserver, master node, controller, those high stuff.
+
+HOW TO DETECT IF THE POD IS STATIC POD?
+Check the name, if it has the node name at the end, it's the static pod. (-controllerplane, kubeapiserver, controller)
+
+=======================================================================================================================================================================================================
+
+Multiple Scheduler
+
+Normally, the scheduler will schedule pods across nodes evenly, of course with the consideration of affinity and taints and tolerants.						
+
+But if we really need to go above and beyond because of some other requirements (ex: there are pods that can only be scheduled after performing additional checks).
+
+Scheduler is deployed as pods, so if we need more scheduler, deploy the pod, add the scheduler-name to differentiate the customized one with the default one.
+If only 1 scheduler: option --leader-elect=false
+If multiple scheduler: option [--leader-elect=true] and [--lock-object-name=<custom_scheduler_name>]
+
+Normally, customized scheduler will be added to some specific pods only. Add the custom scheduler's name to the pod-definition file's schedulerName (on par with containers)
+
+Maybe rewatch this lecture if we really need to use multiple scheduler: https://www.udemy.com/course/certified-kubernetes-administrator-with-practice-tests/learn/lecture/14295588#questions
+
+=======================================================================================================================================================================================================
+
+
+
+
+
+
+
+
+
+

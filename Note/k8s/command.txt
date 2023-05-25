@@ -1,0 +1,361 @@
+start etcd:
+sudo systemctl start etcd.service 
+systemctl status etcd.service
+to enable etcd at system boot: sudo systemctl enable etcd.service (doubt if we ever want to do this)
+
+connect via ssh to VM:
+sudo ssh osboxes@127.0.0.1 -p 2222
+osboxes.org
+
+
+minikube status
+minikube start --driver=docker
+minikube stop
+minikube delete --all
+
+to refer to minikube in ONE terminal (other terminals won't be affected by this command)
+(so we can execute in minikube context, like building docker):
+eval $(minikube -p minikube docker-env)
+docker build -t my-app:v1 .
+...
+
+minikube addson enable metrics-server (to turn on Metric Server for Monitoring and Debugging)
+
+
+vagrant up
+vagrant status
+vagrant ssh (node name) [to access that node, e.x: vagrant ssh kubemaster
+
+Alt-Shift-} or Option-Shift-} or Esc } to indent.
+Alt-Shift-{ or Option-Shift-{ or Esc { to outdent.
+
+=======================================================================================================================================================================================================
+
+Common Linux command
+
+ps -aux [[** Display all processes in BSD format **]]
+grep (search string) [[** extract the result of any line that contains that "search string" **]]
+grep -i (normal grep but now work for both lower and upper case)
+| wc -l (to count line, sometimes, remember to -1 because of the header)
+
+echo -n "sometext" | base64			[[** to encode **]]
+echo -n "c29tZXRleHQ=" | base64 --decode	[[** to decode **]]
+
+Maybe this is just for kodekloud. But normally, the command is ran on controlplane node. If we want to switch to another node: (for example, if we want to delete the static Pod on that node)
+ssh node01
+
+watch "kubectl get jobs" <<< to inspect some job, while waiting for it to be done.
+
+sed -n 52p filename (print the 52th line)
+sed -n 10,20p filename (print from the 10th line to the 20th line)
+
+scp (path to file) (user)@(node):(destination) [[** copy files to folder of another node **]]
+
+if curl or ping is not avaiable, we can use nc (netcat) to check the network. nc help is really concise.
+
+=======================================================================================================================================================================================================
+
+Common Vim command (when kubectl edit)
+
+:w to save
+:x to exit
+:q! to force quit
+
+esc to normal mode
+i to insert mode
+a to append mode (append to the end of the linekubectl -n cosmos logs -c app -l service=form,app=cosmos --since=24h --tail=-1 > log.txt
+)
+r to replace mode for 1 character (CTRL R to be permenant replace mode until esc)
+x to delete character
+dd to delete line
+SHIFT J to delete the line break (like to merge line 1 and line 2, they say this is "join")
+/(something here) to search
+    n for the next result
+    SHIFT N for the previous result
+    
+yy (twice) to copy the entirxe line (they say it's "yank")
+p to paste
+
+v to select text (they say it's "visual mode")
+    y once to copy the selected part of the text, then p to paste 
+    
+v multiple lines then (SHIFT .) to indent multiple lines.
+
+Setting vim with nice tab
+vim ~/.vimrc
+
+set expandtab
+set tabstop=2
+set shiftwidth=2
+
+
+=======================================================================================================================================================================================================
+
+Helm
+
+helm list [[** list all available release **]]
+helm uninstall (the release)
+helm install (the release name) (repo name/chart name) [[** download and install the Chart **]]
+Example: helm install bravo binami/drupal
+
+helm install (the release name) (path to the Chart files)
+helm pull --untar (the release) [[** download but not install the Chart, also unzip the Chart **]]
+
+in case you want to override some files in the (path to the Chart files)
+helm install -f (file1 to override, of course, with the same name as the replaced file) -f (file2 to override) (the release name) (path to the Chart files)
+
+< ... >: ... is hard code.
+
+<helm search hub> wordpress  [[** "hub" is the community driven Chart repo, there are more **]]
+<helm repo add> (some name) (the link found from the command above)  [[** add the repo to our local helm setup **]]
+
+<help search repo> wordpress [[** search for packages from the existing repositories **]]
+helm repo list [[** list existing repo **]]
+
+
+Say, if we are asked to uninstall the certain helm package,
+1. "helm list" to list all existing release.
+2. "helm status *release*" to check if the release belongs to the targeted helm package.
+3. "helm uninstall *release*" to remove the found release.
+
+
+
+
+=======================================================================================================================================================================================================
+
+To know more about the relationship between Docker and K8s, watch this thing: https://www.udemy.com/course/certified-kubernetes-application-developer/learn/lecture/12308344#overview
+
+=======================================================================================================================================================================================================
+
+When try to recreate a POD:
+1. kubectl get pod (pod-name) > current_pod.yaml
+2. Delete the status thingy (ctrl + k to delete quickly)
+3. Fix the file.
+4. Delete the old pod then deploy the new one.
+
+=======================================================================================================================================================================================================
+
+When debug, really try using
+kubectl logs (pod-name) (container-name if there are multiple containers in the pod) [[ -f to stream the log ]]
+before "describe" or "get -o yaml" the pod
+
+Logs with time and no line count limitation
+kubectl -n cosmos logs -c app -l service=form,app=cosmos --since=24h --tail=-1 > log.txt
+
+=======================================================================================================================================================================================================
+
+kubectl explain (job or pod or ...) --recursive | less [[ ** with less, you can type "/search-string" to search the string ** ]]
+
+without --namespace, all kubectl commands will point to the default namespace, which is "Default".
+
+CRUD:
+RULES OF THUMB: Once "kubectl apply " for something, always "kubectl apply "
+
+kubectl create deployment (name) --image=(image name) [[if you want a specific amount of replica, rescale it after creation, using the scale command]]
+--record will tell the deployment to record the cause of changes (it can be used for all kinds of things)
+
+
+kubectl edit deployment (name)  [[**FOR PODS, ONLY SOME ATTRIBUTES CAN BE EDITTED, most can't, so if we really want to make the impossible **]]
+Can only edit for pods:
+spec.containers[*].image
+spec.initContainers[*].image
+spec.activeDeadlineSeconds
+spec.tolerations
+
+kubectl delete deployment (name)
+kubectl delete -f . [[**for yaml file**]]
+kubectl delete -k . [[**for kustomize file**]]
+
+debug:
+kubectl get pods
+kubectl get pods -l (key)=(value) (get pods with the specific label)
+kubectl logs (pod-name) (container-name if there are multiple containers in the pod) [[ -f to stream the log ]]
+kubectl describe pod (pod-name)
+kubectl exec -it (pod-name) -- bin/bash [This command will let us play with the terminal, -it just makes the result looks a bit nicer]
+kubectl exec (pod-name) -- (command) [[** this will help us run the command in the pod's terminal, it will return the result **]]
+Example: 
+kubectl exec ubuntu-sleeper -- ls
+kubectl exec ubuntu-sleeper -- whoami [[**check who's running the pod**]]
+kubectl exec ubuntu-sleeper -- date
+
+kubectl apply -f (file-name)
+
+For applying with kustomize:
+kubectl apply -k .
+
+Create pod:
+kubectl run (pod-name) --image=(image name) (create a new pod) --port=(port number) (--port is optional though) --expose=true (with this service for the pod will be created as well)
+
+kubectl run (pod-name) --image=(image name) --dry-run=client -o yaml (make a yaml output for creating a pod with name and image)
+kubectl run (pod-name) --image=(image name) --dry-run=client -o yaml > pod-definition.yml(make a yaml output for creating a pod with name and image, and paste it in pod-definition.yaml)
+kubectl create -f ./pod-definition.yml (create the pod from the info in the newly created setting file)
+
+To create a tmp pod to test other pods or svc:
+k -n (same namespace) run tmp --image=nginx:alpine --rm -i --restart=Never -- curl (pod's IP) [[** pod's IP can be retrieved from "k -n (ns) get pods -o wide" **]]
+k -n (same namespace) run tmp --image=nginx:alpine --rm -i --restart=Never -- curl (svc's ep) [[** svc's endpoints can be retrieved from "k -n (ns) get endpoints" **]]
+
+Upscale:
+kubectl replace -f (file name with new replica number)
+kubectl scale --replicas=(replica number) -f (file name, no matter the number) [[**The original file won't be changed**]]
+kubectl scale --replicas=(replica number) replicaset (replicaset's name)	  [[**The original file won't be changed**]]
+kubectl scale --replicas=(replica number) deployment (deployment's name)	  [[**The original file won't be changed**]]
+
+Rollout:
+kubectl rollout status deployment/(deployment name)
+kubectl rollout history deployment/(deployment name)
+kubectl rollout undo deployment/(deployment name)
+
+instead of deleting pod by pod for deployments:
+kubectl -n moon rollout restart deploy web-moon
+
+(we also have the tag --all-namespace)
+kubectl create namespace (namespace's name)   
+kubectl config set-context $(kubectl config current-context) --namespace=(namespace's name)	[[**switch permanently to another namespace**]]
+
+E.X.: Create deployment and save it to a file
+k8s version 1.19+
+
+Generate Deployment YAML file (-o yaml). Don't create it(--dry-run) with 4 Replicas (--replicas=4)
+kubectl create deployment --image=nginx nginx --replicas=4 --dry-run=client -o yaml > nginx-deployment.yaml
+
+Create a Service named nginx of type NodePort to expose pod nginx's targetPort 6379 on the nodes (--type can be removed) (nodePort cannot be specified)
+kubectl expose pod nginx --type=NodePort --port=6379 --name=nginx-service --dry-run=client -o yaml
+!!! IMPORTANT !!!
+expose command doesn't reflect the namespace variable correctly!!!
+
+
+kubectl get events [[** get all the events happening in k8s, like scheduling, pulling, creating **]]
+
+kubectl logs (customized scheduler's name) --namespace...
+
+kubectl create configmap (name) --from-literal=(key1)=(value1) --from-literal=(key2)=(value2) --from-literal=(key3)=(value3)
+kubectl create configmap (name) --from-file=(path-to-file)
+
+kubectl create secret generic (name) --from-literal=(key1)=(value1) --from-literal=(key2)=(value2) --from-literal=(key3)=(value3)
+kubectl create secret generic (name) --from-file=(path-to-file)
+
+unlike the other stuff, where we can use "kubectl describe" to get the full information of the stuff. For secret, we need to:
+kubectl get secret (secret-name) -o yaml
+
+It seems like "kubectl get ... -o yaml" is as powerful as "kubectl describe", if not more powerful.
+
+kubectl create sa (serviceaccount name) -n (namespace)
+
+if there's a specific "Config" file, do this to switch context:
+kubectl config --kubeconfig (path to the config file) use-context (context) 
+
+kubectl proxy (if you want to use curl instead of kubectl to interact with kube-apiserver)
+
+=======================================================================================================================================================================================================
+
+Taint and tolerants
+
+kubectl get pods --selector=(label1's key)=(label1's value),(label2's key)=(label2's value),(label3's key)=(label3's value) | wc -l	[[**label-key pairs are separated by the comma ","**]]
+("| wc -l" is for counting line, remember to -1 because of the first line, which are titles)
+
+kubectl taint nodes node-name key=value:taint-effect			[[**taint-effect has 3 possible values: NoSchedule, PreferNoSchedule, NoExecute**]]
+kubectl taint nodes node-name key=value:taint-effect-		[[**the hyphen at the end will untaint the node**]]
+- NoSchedule		= the pod will not be scheduled on this node.
+- PreferNoSchedule 	= the system will try its best to not schedule the pod on the node. NOTE: *try
+- NoExecute 		= the pod will not be scheduled on this node, if there's an existing pod that is not tolerate to the taint, that pod will be killed.
+
+kubectl label nodes <node-name> <key>=<value>
+
+=======================================================================================================================================================================================================
+
+kubeadm:
+
+Kubeadm setup kube-controller, kube-apiserver as a pod in the "kube-system" namespace.
+
+--etcd-servers: specify the location of the etcd server. This is how the kube-apiserver connects to the etcd server.
+
+To view apiserver options (if using kubeadm to set up):
+ps -aux | grep kube-apiserver
+
+To view controller-manager options (if using kubeadm to set up):
+ps -aux | grep kube-controller-manager
+
+=======================================================================================================================================================================================================
+
+"kubectl apply" behind the scene:
+We have an original yml file.
+We run kubectl apply.
+It will generate 2 things: (a copied of that origin yml file with something extra) and (another copy but in json format).
+
+Whenever we make any update to a field: 
+1. Map the original file's field with the json file to check if the field exists or not. (Original == true && json == false) then (create)
+2. If it doesn't exist then create it.
+3. Apply that change to the copied yml file, then regenrate the json file.
+
+Whenever we want to delete a field: 
+1. Map the original file's field with the json file to check which field that exists in the json file but not in the original file anytmore. (Original == false && json == true) then (delete)
+2. Delete that missing field.
+3. Apply that change to the copied yml file, then regenrate the json file.
+
+That json file is actually stored in the copied yml file as a field. Something called:
+```
+annotations:
+  - kubectl.kubernetes.io/last-applied-configuration: {...json here...}
+```
+
+=======================================================================================================================================================================================================
+
+Monitoring
+
+kubectl top node  [[** to show the CPU and memory consumption of the nodes **]]
+kubectl top pod  [[** to show the CPU and memory consumption of the PODs **]]
+
+=======================================================================================================================================================================================================
+
+Authorization
+
+in .kube/config
+if refer to a file crt, it must be "client-certificate"
+- name: martin
+  user:
+    client-certificate: /root/martin.crt
+    client-key: /root/martin.key
+    
+if use real data, it must be client-certificate-data
+users:
+- name: kubernetes-admin
+  user:
+    client-certificate-data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURJVENDQWdtZ0F3SUJBZ0lJSmR2MzYzajg5NDR3RFFZSktvWklodmNOQVFFTEJRQXdGVEVUTUJFR0ExVUUKQXhNS2EzVmlaWEp1WlhSbGN6QWVGdzB5TWpBNE1qTX...
+    client-key-data: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb2dJQkFBS0NBUUVBdU40OXVwK3M5UmNvVEt3cSt6RGMrbzczTzA2VDhDTFRMN3pIZVI0dndnT04xRHY4ClZoUldXL3VtWVhZaUNuVE41T3R0azFXYnIxREhsQ2hhc1...
+
+kubectl auth can-i get pods --as dev-user
+kubectl get pods --as dev-user (if this returns normal answer then the user can do it lol)
+
+kubectl api-resources
+
+# To know the condition in the apiGroups, check here:
+
+kubectl api-resources (grep the thing to find)
+
+# if there's a v1 or v1alpha at the end of the apiversion, remove it.
+# because v1 and v1alpha is the apiVersion.
+
+To find the preferred version of anything: 
+kubectl proxy
+curl localhost:8001/apis/(that-thing)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

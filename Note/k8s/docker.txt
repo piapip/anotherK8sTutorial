@@ -1,0 +1,88 @@
+========================================================================================================================================================================================================
+
+Image: the actual package, like node v13, or PostgresSQL v9. Or artifact, that can be moved around.
+It seems to be the common knowledge that the image with -alpine is the lite version. Like python:3.6-alpine is lighter than the python:3.6
+
+Container: when we pull the image, then run the image!!! Then a container environment is created.
+
+========================================================================================================================================================================================================
+
+docker run -d (image or id of the existing image) (detached mode, so we can use the terminal for something else rather than having to create a new terminal)
+docker ps (show all running containers)
+docker stop (id of the container)
+
+For one shot image.
+docker run (image):(version if there's any) (command here, e.x. , cat /etc/os-release in case you want to check  version of the OS running this image)
+
+
+docker images (show all running images)
+docker run -p(your port):(container port)
+normally docker run command will be extremely complicated, it's better go to https://hub.docker.com/ and look up their documents for the run command.
+For example, for mongodb: it would be this https://hub.docker.com/_/mongo
+To find a certain container given you know part of the name:
+docker ps -a | grep (the container's name, part of it is also ok)
+
+To rebuild a container:
+1. Remove it by id.
+2. Remove the image.
+3. docker build -t my-app:v1.0.0 . 
+4. docker run -p (host port):(container port) my-app:v1.0.0 [-p is optional, host port = port in our local machine, container port = port specified in the Dockerfile)
+5. Profit?
+
+docker exec --it (container id) /bin/bash
+docker exec --it (container id) /bin/sh
+
+Step to push an image.
+1. Write a bunch of code.
+2. Create Dockerfile.
+3. docker build -t my-app:v1.0.0 .
+4. Create a PRIVATE repository on aws (for some reason public repository doesn't work)
+5. Follow aws's push commands (remember to match our existing version, according to step 3., the version is v1.0.0)
+6. To make the db works, be very mindful of the `container_name_mongo_db`. This is special.
+
+The volumes for docker is to make the data persist after build and reset (without this, all the data will be gone). 
+The way it does is to point to where the data is stored, ideally, the data storae should be independent from the actual project, should be in another place.
+Locally, the volume will base on the db. For mongo, it will be /data/db. For MySQL, it will be /var/lib/mysql/data.
+
+========================================================================================================================================================================================================
+
+Security in Docker (Weirdly enough, I never know that Docker has the concept of namespace)
+
+Process Isolation:
+- Docker's containers are not completely isolated from their host. They share the same kernel.
+- Containers are isolated using namespace in Linux???
+- The host has a namespace and the containers have their own namespaces.
+- All the processes running in the containers are actually running on the host, but in their own namespace.
+- Some preference switching:
+  - Within the containers: It can only see its processes. Their PIDs (ProcessID) are 1, 2, 3, ...
+  - Within the host: It can see all the processes of all the containers. PIDs for processes (not containers) are like 3217, 3220, 3221, 3310, ...
+===> So Docker isolates containers by using PID (ProcessID) and namespaces.
+
+Docker users
+- A host has 1 root users and multiple non-root users.
+- It seems like each container has their own root user too. Though, it doesn't have as much power as the host's root user. It's limited by (Linux Capabilities, let's say this is a list of power and the container's root user only has a handful of them, the list is stored in /usr/include/linux/capability.h).
+- The limit can be expanded or shrunk. I bet I'll never touch that :p
+- By default, the process (not the container) is run as the container's root user.
+- We can specify which user to run the process by giving the docker an userID (this value can be abitrary, can be set by using Dockerfile)
+
+========================================================================================================================================================================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

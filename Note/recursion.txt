@@ -1,0 +1,70 @@
+Some flow of thoughts in the making of recursion function: (the most important goes to the top)
+https://www.geeksforgeeks.org/print-all-possible-combinations-of-r-elements-in-a-given-array-of-size-n/?fbclid=IwAR0e_qK4p_64cxpoktxxhUvnhJWcwB6v6QanHTm5CqW2bFCbnUjQrkd-Wsw
+Problem: Getting all combinations out of n number from a list.
+
+1. The recursive strategy. It should as close to how a normal human function on a simple case.
+EX: The way a normal human do is: starting by the first number and slowly remove stuff.
+Like: given 12345. Take 3 out of 5.
+We'll do: 123, 124, 125, 134, 135, ... The tree given in the link does the reverse engineering to get that strategy. (<<< reverse engineering is quite impressive)
+
+2. What to recursive on (what to loop). Normally, we are given an array and some constant value. 99% we will loop on that array.
+If we are given more than one array then Idk :D
+We are given a number that we need to loop on. Say 12345, then [1, 2, 3, 4, 5] is the array we need to loop on.
+
+3. The start pointer of looping (where to start, condition to end a loop).
+99% the starting point will be the pointer pointing at the start of the array.
+The condition of a loop will be a function like a.start + b.end + c.index + d.("r") + offset = e. Solve the function and gotem baby.
+
+How to get the parameter (start, end, index, r, offset)
+- offset is always there to create some counter-balance.
+- start and end is always there as the counter of the array.
+- r is the given by the problem so it's always there too.
+- Index is the only extra thing. Because the logic give us an empty array [0, 0, 0] and tell us to fill in the number, we'll need to know where we are at.
+  Example:
+  [0, 0, 0] means we just start, then index = 0.
+  [1, 0, 0] means we are now finding stuff for the second 0, then index = 1.
+
+In the example problem in 1., we'll have r = 3. Look at the tree in the link
+Let's list something: (we have 5 argument so let's build a 5-parameter function)
+
+- The first layer of 1: data = [0 (index is here, index = 0), 0, 0]
+start = 0 end = 4 index = 0 r = 3, the loop will allow us to loop through 3 values (2,3,4) ==> it's allowed to be loop 3 times.
+0a + 4b + 0c + 3d + offset = 2 ==> 4b + 3d + offset = 2.
+
+(why loop 3 times and the sum = 2: because sum = 2, it makes an array of [0,1,2] ==> 3 items ==> loop 3 times)
+
+- The second layer of 1: data = [1, 0 (index is here, index = 1), 0]
+start = 1 end = 4 index = 1 r = 3, the loop will allow us to loop through 3 values (2,3,4) ==> it's allowed to be loop 3 times. 
+(why there's no (5) in the values list: because 5 is the last number, it can't show up at the middle)
+(what does it mean by start = 1: look at the array, start = 1 it means it starts looping from 2,3,4,5)
+a + 4b + c + 3d + offset = 2 ==> a + 4b + c + 3d = 2 ===> a + c = 0
+
+- The third layer of 1: data = [1, 3, 0 (index is here, index = 2)]
+start = 3 end = 4 index = 2 r = 3, the loop will allow us to loop through 2 values (4,5) ==> it's allowed to be loop 2 times.
+(what does it mean by start = 3: look at the array, it means it starts looping for 4,5))
+(but why start = 3, because the index is pointing at the number 4 in given array [1,2,3,4,5]. (4)'s index is 3)
+(how do you know it's pointing at the number 4: look at the tree: 13 has 2 children: 134 and 135. The first valid loop is pointing at the first child, 134, so it starts at 4).
+(why only loop 2 times, look at the tree, (13) has 2 childs: 134 and 135, so loop 2 times) (we don't count invalid loop, only count valid loop)
+3a + 4b + 2c + 3d + offset = 1 ==> 3a + 2c = -1 ==> a = -1, c = 1.
+
+- The first layer of 2: data = [0 (index is here, index = 0), 0, 0]
+start = 1 end = 4 index = 0 r = 3, the loop will allow us to loop through 2 values (3,4) ==> it's allowed to be loop 3 times.
+(but why start = 1, because the index is pointing at the number 2 in given array [1,2,3,4,5]. (2)'s index is 1)
+a + 4b + 3d + offset = 1 ==> a = -1 (we already know this). It seems like we'll get to no where with a single tree. We'll need to build another tree. with r = 2.
+
+3.5. Build 2 trees. lololol
+Maybe we'll get something like this: a = -1, b = 1, c = 1, d = -1, offset = 1. ==> end - start + 1 + index - r >= 0 then we'll keep looping, with increment start.
+
+4. When to move on to another recursion. Look at the strategy again, when a recursion returns the answer, that's the condition.
+Unlike the condition of a loop at (3.), this condition should be simple!
+
+5. What's the paremeter of the recursion function?
+What to carry over from loop 1 to loop 2. Whatever is after a function will be carried over. :p
+To find which element, look at the strategy. Told you it's the most important.
+
+
+
+
+
+
+

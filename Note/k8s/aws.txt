@@ -1,0 +1,9 @@
+After creating a repository in aws, create permission for that repo.
+- Permission on the left.
+- Edit
+- Add statement.
+- Select all entities.
+  - if there's no familiar entity, goes to IAM, create UserGroup --> create User and give that UserGroup the AmazonEC2ContainerRegistryFullAccess, AmazonElasticContainerRegistryPublicFullAccess (there are 5 ContainerRegistry related, if not sure add them all)
+- Then if performs as the the guide.
+- If the terminal returns "you missed this permission", then go to the Permission screen --> edit policy JSON --> add that permission.
+

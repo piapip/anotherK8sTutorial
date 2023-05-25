@@ -1,0 +1,1749 @@
+Cert: https://ti-user-certificates.s3.amazonaws.com/e0df7fbf-a057-42af-8a1f-590912be5460/870bcd6b-ac19-4232-91b5-19f1c6a207c2-phm-hu-th-9b57345a-1080-4bf3-ace9-881947558163-certificate.pdf
+
+Image: the actual package, like node v13, or PostgresSQL v9. Or artifact, that can be moved around.
+
+Container: when we pull the image, then RUN THE IMAGE!!! Then a container environment is created. They are like miniture virtual machine. (but they do not have their own virtual kernel, they run on your main machine's kernel)
+
+=======================================================================================================================================================================================================
+
+Pod:
+- Smallest unit of k8s
+- Abstraction over a container
+- Create a running environment or a layer on top of the container
+- Usually only 1 container per pod. (It can have multiple containers, and if so, there usually be a main container and multiple helper containers! But no 2 same container, like no 2 running MySQL images)
+- Each pod has its own IP address. New IP address upon re-creation. And we don't want to update our IP address everytime the pod fails (which is a lot), we have Service.
+- It can have a containerPort. containerPort defines the port on which app can be reached out inside the container.
+
+Service:
+1. A load balancer
+- Catch the request and forward it to whatever pod that it's the least busy.
+2. Permanent IP address attached to each pod. When the pod goes down (dies), the Service's IP stays the same.
+- And if we want our application, or our pod to be accessible through a browser, or an API call, need to create an external service.
+- External service is a service that opens the COMMUNICATION from the external sources. (DB will have the internal service because we don't want everyone to get access to it)
+- The external service will have their URL looks like this: 124.89.101.2:8080 (ip:port), which is okay to use but not practical, so we need Ingress to make it looks nice.
+(By looking nice I mean: https://my-app.com)
+
+Ingress:
+- So the request instead of going directly to the Service, it will go through in the Ingress, and the Ingress will port-forward to the respective Service.
+
+ConfigMap and Secret: just for the db thing.
+
+Volumes:
+- To prevent the data to be gone when the container or the pod get restarted. We'll need volumes.
+- Volumes attaches a physical storage on a hard drive to the pod. That storage can either on the same server node where the pod is running, or on the remote storage, outside of the application (aka cluster aka a bunch of pods/node).
+
+Deployment: the blueprint (or abstraction) for pods. (will mostly work with this, not with pod)
+
+StatefulSet:
+- Because it's not okay to create multiple replica of data storage (to avoid data inconsistency), so we'll need a mechanism to manage which pods are currently writing to that storage, reading from that storage. That is StatefulSet.
+- Replicas should be created by using StatefulSet, not Deployment. Basically, it's like Deployment but for DB. Not easy to create, so just create it outside of the cluster.
+
+========================================================================================================================================================================================================
+
+1 Instance	= is a pod, can contain multiple containers.
+		  docker run nodejs (can say this is a pod, and normally 1 pod should only represent 1 container so these 3 terms are kinda interchangable)
+1 node    	= a machine (physical or virtual), containing multiple instances (pods)
+1 cluster 	= multiple nodes. 1 Master node and a lot worker node (replica).
+
+Cluster is a set of PHYSICAL MACHINE (or virtual stuff running on a PHYSICAL MACHINE) that are used to host the containerized applications. 1 cluster can have multiple namespaces. Example:
+Cluster is Physical.
+- Dev needs 1 machine to run (because it just serve 1 dev team)
+- Staging needs 3 machines to run (because it serves 5 test teams for 5 services)
+- Production needs 100 machines (because it serves hundreds thousands of users)
+So 3 cluster equals to 3 sets of machine: dev, stg, and prd.
+
+Now, if we have 5 services: IAM, Form, Webform, Journey, BFF. Then we may have 2 namespace: backend and frontend. Namespace backend will take IAM, Form, Journey, while namespace frontend will manage Webform and BFF. Because deployments in the same namespace can't share name. So if team backend also have their own BFF, they can create it without having conflict against the frontend team.
+
+Cluster makes sure we can scale the system individually based on the requirement. (Or multi tenant, 1 company = 1 tenant = multiple accounts with 1 account = 1 chatbot)
+Namespace just helps us managing stuff.
+
+
+╔════════════════════════════════════════════════════════════════════════════════════════════════╗
+║ ┌───────────────────────────────────────────────────────────┐ ┌──────────────────────────────┐ ║
+║ | ┌──────────────────────────┐ ┌──────────────────────────┐ | | ┌──────────────────────────┐ | ║
+║ | |┌───────────┐┌───────────┐| |┌───────────┐┌───────────┐| | | |┌───────────┐┌───────────┐| | ║
+║ | |│ Container ││ Container │| |│ Container ││ Container │| | | |│ Container ││ Container │| | ║
+║ | |└───────────┘└───────────┘| |└───────────┘└───────────┘| | | |└───────────┘└───────────┘| | ║  (Here Node doesn't actually hold the pod, it runs the containers of the pods but it doesn't 
+║ | |           Pod            | |           Pod            | | | |           Pod            | | ║  do any management job for the Pod. The management job is for Namespace).
+║ | └──────────────────────────┘ └──────────────────────────┘ | | └──────────────────────────┘ | ║
+║ |                           Node                            | |             Node             | ║
+║ └───────────────────────────────────────────────────────────┘ └──────────────────────────────┘ ║
+║                                                                                                ║
+║                                          Cluster                                               ║
+║                                                                                                ║
+╚════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+┌────────────────────────────┐
+|┌─────┐┌─────┐┌─────┐┌─────┐|	Namespace doesn't have any control or management responsibility for nodes.
+|│ Pod ││ Pod ││ Pod ││ Pod │|	Like how deployement doesn't care about nodes, it just cares about the pods it has to watch over.
+|└─────┘└─────┘└─────┘└─────┘|	
+|         Namespace          |
+└────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+|                                                                                                               |
+|┌─────┐┌────────────┐┌─────┐┌────────────┐┌─────────┐ ┌────────┐ ┌──────┐ ┌─────────────┐ ┌───────────┐ ┌─────┐| These are the things that are under the management of namespace.
+|│ Pod ││ ReplicaSet ││ Job ││ Deployment ││ Service │ │ Secret │ │ Role │ │ RoleBinding │ │ ConfigMap │ │ PVC │| Without the namespace option specified, all of these will be stored under the 
+|└─────┘└────────────┘└─────┘└────────────┘└─────────┘ └────────┘ └──────┘ └─────────────┘ └───────────┘ └─────┘| "default" namespace.
+|                                                                                                               | 
+|                                               Namespace                                                       | These are not all, check here for the list: kubectl api-resources --namespaced=true
+└───────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────────────────────────────┐
+|                                                                                                    |
+| ┌──────┐ ┌───────────┐ ┌────┐ ┌─────────────┐ ┌────────────────────┐ ┌───────────────────────────┐ |  
+| │ Node │ │ Namespace │ │ PV │ │ ClusterRole │ │ ClusterRoleBinding │ │ CertificateSigningRequest │ |  These are the things that are under the management of cluster.
+| └──────┘ └───────────┘ └────┘ └─────────────┘ └────────────────────┘ └───────────────────────────┘ |
+|                                                                                                    |  These are not all, check here for the list: kubectl api-resources --namespaced=false
+|                                             Cluster                                                |
+└────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+Container is a docker thing, not k8s thing.
+
+Container orchestration: The process of automatically deploying, and managing container (like scale up or scale down based on load, or reassign job to another node when a node dies) is container orchestration.
+
+Master node watches over the nodes in the cluster and is responsible for the actual orchestration of the containers on the worker nodes (aka replica).
+
+Master and worker node. (some setup like 2 masters, 3 workers, 3-6)
+- Master nodes are the more important parts but they takes less resource. (just manage stuff)
+- Worker nodes takes more resource because they are the one who actually run the application.
+
+On the master node: (master node plans how to load, which worker node to load on, monitoring nodes, ...)
+- Using control plan component to manage stuff.
+- Control plane component = etcd + kube-scheduler + kube-apiserver + controllers...
+
+(Return the result for the Get thingy)
+- etcd cluster which stores all data used for managing the cluster (like nodes, pods, configs, secrets, accounts, roles, bindings, ...)
+  - It is the key-value store.
+  - Every magical logic that kube can do relies on the data in etcd.
+  - Example: say, we have a lot of master nodes and a lot of worker nodes, it will store all the information on all the nodes in the cluster. It's responsible for implementing the logs within the cluster to ensure there are no conflicts between the masters,
+
+(Update - manage pods, containers)   
+- kube-scheduler that is responsible for identifying the right node to place a container on based on the container's resource requirement, the worker node's capacity, other contraints, distributing works or containers across multiple nodes, ... Example:
+  - When given a container (pods), it will calculate how much CPU and memory resource requested.
+  - Filter phase: Get rid of all the nodes that can't supply enough CPU and memory resource requested.
+  - Rank nodes: count how much memory will be left after putting the container to that node. (of course, this rule can be changed).
+    - Remember, this doesn't mean more the node with more CPU wins all the time.
+    - Say if node A has 10 MB, node B has 12 MB, the container requires 8 MB. But A already has 5 MB of existing pods that can supply for the container.
+    - So after assigning, A will have 7 MB left, and B will have 4 MB left. So A wins.
+
+(Create, destroy pods, containers)
+- Controller manager watches status and remediate situation. (try its best to reach the ideal state)
+  - it has multiple controllers that take care of different functions. Like the node controller or replica controller.
+  - The brain behind the orchestration, it's responsible for noticing and responding when node's containers or endpoints goes down (die).
+  - node controller: responsible for onboarding new node to the cluster, handling situations where nodes become unavailable or gets destroyed. Example:
+    - This controller ping all the nodes every 5 seconds. (this number is configurable)
+    - If it stops getting heartbeat from a node, that node is marked up reachable.
+    - It waits for 40 seconds before marking it really unreachable. (this number is configurable)
+    - After marking unreachable, it gives the node 5 minutes to come back up. (this number is configurable)
+    - If the node doesn't come back up, it removes the PODs assigned to that node and provision them on another healthy node (if the pods are part of a replicaset, which means there's blueprint).
+  - replica controller (and replica set):
+    - the behavior of monitoring reachable stuff in the ReplicaSet (which are PODs) is very similar to the node controller, but instead of pinging nodes, it pings PODs.
+    - replica set is the new version of replica controller. They have the same purpose but are not the same thing.
+    - When we delete the replica set, it will also delete all the pods that it's supervising, even those pods that are created before the ReplicaSet creation.
+    - If we have reached the limit number (let's say we have 3/3 running replicas), if we try to create more replica manually, it will terminate itself.
+    - If we want to update the image used by Pods in the ReplicaSet, we'll need to edit the ReplicaSet, then delete the currently existing Pods so ReplicaSet can redeploy with the new one.
+    Common points:
+    - ensures that the desired number of containers are running at all time. (like always having 100 replicas running).
+    - even with the replica setting set to 1 (which means no replica), replica controller can help automatically bringing up a new pod if the current one fails.
+    - help with the load balancing and scaling (increase pods across multiple nodes to serve more users)
+    Different points:
+    - the selector (major diff) Selector will help monitoring the existing pods if they are created already. If the pods are not created, the ReplicaSet will create them.
+    
+
+- Kube-apiserver that is responsible for orchestrating all operations within the cluster.
+  - It acts like the frontend for kubernetes, users interact with kubernetes cluster via this thing.
+  - It also acts as a gatekeeper for authentication.
+  - When receive a command, like "kubectl run nginx --image=nginx" (to create a pod nginx without assigning it any specific node)
+                 1. Kube-apiserver will first authenticate the user who calls the command.
+                 2. Validate the request.
+                 3. Update the data in the etcd server, then send the response back to the user that the pod has been created.
+    (SCHEDULER)  4. kube-scheduler is monitoring containers, notice that there's no specified containers to put this pod on, it automatically finds a suitable container (node) to put this pods on.
+    (SCHEDULER)  5. kube-scheduler tells the kube-apiserver.
+                 6. kube-apiserver updates that information in etcd cluster.
+                 7. kube-apiserver (again) passes that information to the kubelet in that suitable container (node).
+    (KUBELETE)   8. kubelet create the pod on the container (node) and tell the Container Runtime Engine (like docker) to construct the image.
+    (KUBELETE)   9. kubelet will update the status to the kube-apiserver upon finishing. 
+                10. kube-apiserver updates the data (for the 3rd time) to the etcd cluster.
+  - Basically, everything has to go through the kube-apiserver
+   
+
+On the worker node: (worker node can load containers)
+(Execute stuff in the pods, containers)
+- kubelete (captains of the ships) that listens for instructions from the kube-apiserver, interact with both containers and nodes.
+  - It runs on each node in the cluster. And manages the containers on the node.
+  - It lets the master node knows that it wants to join the cluster, or which containers it wishes to be loaded on the worker node. Report the node's status to the master node, ...
+  
+- kube-proxy that helps enabling communication between services within the cluster. (like helping the nodejs node 1 communicating with the db node 2, it will be deployed on every node)
+
+╔═════════════════════╦═════════════╗
+║      Master         ║    Worker   ║
+╠═════════════════════╬═════════════╣
+║</> kube-apiserver<--║-->kubelete  ║
+║       etcd          ║             ║
+║     controller      ║             ║
+║     scheduler       ║ CR(docker)  ║ (CR = container run time)
+╚═════════════════════╩═════════════╝
+
+Both master node and worker node have container runtime engine.
+- Container runtime engine: the thing that is compatible to all running containers so it can run the application (basically deploying a bunch of containers at the same time), a good example is Docker.
+
+Schedule new Pods --> kube-apiserver --> kube-scheduler --> Some magic done by the kube-scheduler.
+
+╔══════════════╦═════════╗
+║     Kind     ║ Version ║
+╠══════════════╬═════════╣
+║     POD      ║   v1    ║
+║   Service    ║   v1    ║
+║  ReplicaSet  ║ apps/v1 ║
+║  Deployment  ║ apps/v1 ║
+╚══════════════╩═════════╝
+
+=======================================================================================================================================================================================================
+
+Label and selectors:
+
+3 instances of front-end stuff into 3 pods. ReplicationController with replicas of 3 to always have 3 pods at anytime.
+- Selectors will tell the ReplicaSet the special zit that the pods have, so the ReplicaSet know how to find those special ones.
+- Proper Pod's labelling and setting up selectors are important.
+- Said, if there are already enough existing pods deployed, we still need to provide the template. Because in case the deployed pod fails, or we need to scale up (by upping the replicas number), the ReplicaSet will know what to recreate.
+
+Diff: ReplicaSet can also manage pods that are not created by itself (those that are already running), ReplicationController can't.
+
+=======================================================================================================================================================================================================
+
+Deployment:
+
+Problem: When we deploy stuff to the internet, we will want to deploy multiple instances. When we want to update those instance, we won't update them all at once, but one by one.
+During the update phase, if there's an unexpected error, we want to rollback as well, also one by one. We also may need to manage our scaling, resource allocation, updating packages, ...
+Deployment solves the problem.
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║        Deploy   Upgrade   Rollback   Edit/Manage   Pause   Resume        ║
+║ ┌──────────────────────────────────────────────────────────────────────┐ ║
+║ |┌─────┐┌─────┐┌─────┐┌─────┐┌─────┐┌─────┐┌─────┐┌─────┐┌─────┐┌─────┐| ║
+║ |│ Pod ││ Pod ││ Pod ││ Pod ││ Pod ││ Pod ││ Pod ││ Pod ││ Pod ││ Pod │| ║
+║ |└─────┘└─────┘└─────┘└─────┘└─────┘└─────┘└─────┘└─────┘└─────┘└─────┘| ║
+║ └──────────────────────────────────────────────────────────────────────┘ ║
+║                                                                          ║
+║                              Deployment                                  ║
+║                                                                          ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+It seems like when we create deployment, ReplicaSet is automatically created as well. (ahhhh, so that's why, I was weird out in my second attempt)
+
+Rollout and Versioning: Each rollout will have its own revision
+Revision 1: Pod 1 | Pod 1 | Pod 1 | Pod 1 | Pod 1 | Pod 1 | Pod 1 |
+Revision 2: Pod 2 | Pod 2 | Pod 2 | Pod 2 | Pod 2 | Pod 2 | Pod 2 |
+
+Update = New ReplicaSet + New Pod. (the old ReplicaSet is not deleted, it just has 0 pods) 
+Deployment Strategy:
+1. Recreate: Destroy all old stuffs at once and create new. (Down time required)
+   This will scale down everything to 0. Then scale back up to the set value.
+2. Rolling Update: Destroy one instance and replace with a new one. Redo this for all instance one at a time. (This is the default strategy that k8s uses if we don't specify anything)
+   This will scale down slowly 1 at a time (like 10 -> 9 -> 8 ->...) to 0. Then scale back up slowly 1 at a time to the set value (like 0 -> 1 -> 2 -> ...). 
+   It seems like this process is done concurrently so we can't see this *1-at-a-time in the log nicely though. 
+
+If you want to update the strategy from RollingUpdate to Recreate, other than updating the type, remember to remove the strategy's rollingUpdate as well, otherwise, there will be an error.
+   
+To know up to how many pods can be down at a time for the upgrade, look at the RollingUpdateStrategy in the deployment and calculate with the replica number.
+
+Some extra strategy:
+
+Blue Green: Old version is "Blue", new version is "Green". When we update version to Green, we will deploy Green version alongside with Blue. But all the traffic will be routed to Blue. When all the testing and checking is done for "Green". We shift all the traffic to "Green" and shut down "Blue". (Something related to istio, what's that?) 
+
+Canary: Deploy a new temp version alongside with old version, but only let a very small traffic routed to the new version. After passing all kind of testing on the new version, update the current deployment to the new version, then removed the temp version. (It's like RollingUpdate with something extra). <<< this sounds dumb, ngl.
+
+=======================================================================================================================================================================================================
+
+Networking
+
+1.
+Your laptop has an IP address. Say: 192.168.1.10
+A node has an IP address. Say: 192.168.1.2
+Each pod has its own internal IP. Say, one of the pods has: 10.244.0.2
+When k8s is initially configured, an internal network with IP address is created. Say: 10.244.0.0
+When a pod is created, its IP address is assigned from that internal network. So 10.244.0.1, 10.244.0.2, 10.244.0.3, ...
+
+2.
+When we have multiple nodes. Say node 1 and node 2, they are not in the same cluster yet. Then
+Node 1: 192.168.1.2
+  Internal IP: 10.244.0.0
+    Pod 1.1: 10.244.0.1
+    Pod 1.2: 10.244.0.2
+    ...
+Because they are not in the same cluster yet, node 2 will have the same Internal IP as Node 1!
+Node 2: 192.168.1.3
+  Internal IP: 10.244.0.0
+    Pod 1.1: 10.244.0.1
+    Pod 1.2: 10.244.0.2
+    ...
+    
+Problem: when we want to put Node 1 and Node 2 into the same cluster, they will have the same internal IP, which will cause conflict.
+When k8s is initially configured, it expects us to configure the network settings so such conflict won't happen. There are tools and service to help us doing that, so we won't have to do everything by ourselves.
+
+The external tool does this: The Routing for us so Nodes can communicate with other Nodes and containers.
+
+
+                      Before using External tool								   After using External tool
+                      
+╔═══════════════════════════════╗  ╔═══════════════════════════════╗          ╔═══════════════════════════════╗                         ╔═══════════════════════════════╗
+║          Node 1's IP          ║  ║          Node 2's IP          ║          ║          Node 1's IP          ║                         ║          Node 2's IP          ║
+║          192.168.1.2          ║  ║          192.168.1.3          ║          ║          192.168.1.2          ║                         ║          192.168.1.3          ║
+║                               ║  ║                               ║          ║                               ║      ╔═══════════╗      ║                               ║
+║  ┌─────────────────────────┐  ║  ║  ┌─────────────────────────┐  ║          ║  ┌─────────────────────────┐  ║      ║           ║      ║  ┌─────────────────────────┐  ║
+║  |       Internal IP       |  ║  ║  |       Internal IP       |  ║          ║  |       Internal IP       ├──║──────║  Routing  ║──────║──┤       Internal IP       |  ║
+║  |       10.244.0.0        |  ║  ║  |       10.244.0.0 (!)    |  ║          ║  |       10.244.0.0        |  ║      ║           ║      ║  |       10.244.1.0        |  ║
+║  └────────────┬────────────┘  ║  ║  └────────────┬────────────┘  ║          ║  └────────────┬────────────┘  ║      ╚═══════════╝      ║  └────────────┬────────────┘  ║
+║               |               ║  ║               |               ║          ║               |               ║            |            ║               |               ║
+║               |               ║  ║               |               ║          ║               |               ║            |            ║               |               ║
+║               |               ║  ║               |               ║          ║               |               ║            |            ║               |               ║
+║         ┌─────┴──────┐        ║  ║         ┌─────┴──────┐        ║          ║         ┌─────┴──────┐        ║            |            ║         ┌─────┴──────┐        ║
+║         │  Pod's IP  │        ║  ║         │  Pod's IP  │        ║          ║         │  Pod's IP  │        ║            |            ║         │  Pod's IP  │        ║
+║         │ 10.244.0.1 │        ║  ║         │ 10.244.0.1 │        ║          ║         │ 10.244.0.1 │        ║            |            ║         │ 10.244.1.1 │        ║
+║         └────────────┘        ║  ║         └────────────┘        ║          ║         └────────────┘        ║            |            ║         └────────────┘        ║
+╚═══════════════════════════════╝  ╚═══════════════════════════════╝          ╚═══════════════════════════════╝            |            ╚═══════════════════════════════╝
+                                                                                                                           |
+                                                                                          ┌────────────────────────────────┴─────────────────────────────────────┐
+                                                                                          |               External tool/service: E.x. Kalico                     |
+                                                                                          └──────────────────────────────────────────────────────────────────────┘
+=======================================================================================================================================================================================================
+
+Service: Only necessary if we need to expose something.
+
+K8s service help connect between multiple component within and outside of the application. 
+
+Problem: Normally, when we deploy a node and a pod inside the node, us as an OUTsider, can't just use the browser, and type 10.244.0.1 to get access to the content of the pod (if we do it inside the node, it's okay)
+
+We need something in the middle, to help us map requests to the node from our laptop to get access to the node's pod.
+Service is that something. Service listen to a port on the node, forward that request to the pod. (that port looks like a parasite)
+Multiple types:
+TLDR: 
+  They are very similar in many ways. Scale: LoadBalancer > NodePort > ClusterIP.
+  But it seems like db and worker (stuff that is not exposed externally, sometimes not even exposed to anything) mostly uses ClusterIP and the other use NodePort.
+
+- NodePort: port on the node.
+  The port (80) on the Service is called the "Port"
+  The port (90) on the Pod is called the "TargetPort" (Port and TargetPort can be the same, like they can be both 80)
+    - In the example below, we can see that Pod 9 is not forwarded to the Service. Because its containerPort doesn't match with the TargetPort! So keep it mind to keep it the same as the others!
+    - Normally, containerPort and TargetPort has the same value.
+  When a port dies, goes down, fails, and get built back up, it doesn't hold its old IP and it's given a new one. So it's not static.
+  Service itself has its own IP address (10.106.1.12). That IP address is called the "ClusterIP of the Service".
+  NodePort (30008) is limit to a certain range (30000 - 32767). Its default value is 30008. (Remember to run kubectl get nodes -o wide to get the Node's IP).
+  How does the Service know which Pod to pick when a request arrives? It doesn't know, it just picks a random one.
+
+                                    Multiple Pods in the same Node
+                              ╔═════════════════════════════════════════════════════════════════╗
+                              ║                    Node 1's IP                                  ║
+                              ║                    192.168.1.2                                  ║
+                              ║                                                                 ║
+                              ║                            ┌─────────────────────────┐          ║
+                              ║                            |       Internal IP       |          ║
+                              ║                            |       10.244.0.0        |          ║    80 - Port
+                              ║                            └─────────────┬───────────┘          ║    90 - TargetPort (also the containerPort for the 3 Port 1 2 3)
+ ┌───────────────────┐   ┌──────────┐   ┌─────────────────┐              |                      ║  1000 - containerPort for Pod 9 (But it seems like we'll use selector to filter
+ | curl              |   │ NodePort │   │ Service's IP ┌──┴─┐            |                      ║         which pod to connect to which is weird because what's the point of containerPort then?)
+ | 192.168.1.2:30008 ├───┤          ├───┤              │ 80 ├────────────┤                      ║
+ | (Node 1's IP)     |   │  30008   │   │  10.106.1.12 └──┬─┘            |                      ║  TargetPort can have non-numerical value!?!?!?!?!
+ └───────────────────┘   └──────────┘   └─────────────────┘              |                      ║
+                              ║                           ┌──────────────┼──────────────┐       ║
+                              ║         ┌────┐         ┌──┴─┐         ┌──┴─┐         ┌──┴─┐     ║
+                              ║     ┌───┤1000├───┐ ┌───┤ 90 ├───┐ ┌───┤ 90 ├───┐ ┌───┤ 90 ├───┐ ║
+                              ║     │   └────┘   │ │   └────┘   │ │   └────┘   │ │   └────┘   │ ║
+                              ║     │ Pod 9's IP │ │ Pod 1's IP │ │ Pod 2's IP │ │ Pod 3's IP │ ║
+                              ║     │ 10.244.0.9 │ │ 10.244.0.1 │ │ 10.244.0.2 │ │ 10.244.0.3 │ ║
+                              ║     └────────────┘ └────────────┘ └────────────┘ └────────────┘ ║
+                              ╚═════════════════════════════════════════════════════════════════╝
+
+                                    Multiple Pods in the multiple Nodes
+                          ┌────────────────────────────────────────────────────┐                          
+                          |               curl (Node's IP):30008               |                          
+                          └──────────────────────────┬─────────────────────────┘                          
+                 ┌───────────────────────────────────┤                                 
+             ┌───┴───┐                           ┌───┴───┐                           ┌───────┐            
+ ╔═══════════| 30008 |═══════════╗   ╔═══════════| 30008 |═══════════╗   ╔═══════════| 30009 |═══════════╗
+ ║           └───────┘           ║   ║           └───────┘           ║   ║           └───────┘           ║ ┌────────────────────────────────────────────────────────────────────────────────────────┐
+ ║          Node 1's IP          ║   ║          Node 2's IP          ║   ║          Node 4's IP          ║ |Say Pod 1, Pod 2, and Pod 3 does task X (Same cluster)                                  |
+ ║          192.168.1.1          ║   ║          192.168.1.2          ║   ║          192.168.1.4          ║ |    Pod 4 does task Y (In another cluser)                                               |
+ ║             ┌─────────────────────────────────────────┐           ║   ║                               ║ |Setup the Service 1 to link to Pod with task X (NodePort: 30008)                        |
+ ║             |               Service 1                 |           ║   ║                               ║ |Setup the Service 2 to link to Pod with task Y (NodePort: 30009)                        |
+ ║             └──────────────────┬──────────────────────┘           ║   ║                               ║ |And I want to do task X.                                                                |
+ ║                ┌───────────────┴──────────┬──────────────┐        ║   ║                               ║ |If I use (Node 1's IP) with (Service 1's NodePort): 192.168.1.1: 30008, it does X.      |
+ ║         ┌──────┴─────┐        ║   ║ ┌─────┴──────┐ ┌─────┴──────┐ ║   ║         ┌────────────┐        ║ |If I use (Node 1's IP) with (Service 2's NodePort): 192.168.1.1: 30009,it does nothing. |
+ ║         │ Pod 1's IP │        ║   ║ │ Pod 2's IP │ │ Pod 3's IP │ ║   ║         │ Pod 4's IP │        ║ └────────────────────────────────────────────────────────────────────────────────────────┘
+ ║         │ 10.244.1.1 │        ║   ║ │ 10.244.2.1 │ │ 10.244.3.1 │ ║   ║         │ 10.244.4.1 │        ║  
+ ║         └────────────┘        ║   ║ └────────────┘ └────────────┘ ║   ║         └────────────┘        ║
+ ╚═══════════════════════════════╝   ╚═══════════════════════════════╝   ╚═══════════════════════════════╝
+                               
+- ClusterIP: Service creates a virtual IP inside the cluster to enable communication between services, like a set of frontend servers to a set of backend servers.
+  Normally, in full stack, we have:
+    ・A group of frontend pods. (Say ReactJS)
+    ・A group of backend pods.  (Say Golang)
+    ・A group of database pods. (Say MySQL)
+  We can't rely on these pods' IP address because they are not static (mentioned above).
+  K8s Service can group these pods together and create a single interface to access the pods in the group. In this example, it would be 3 groups. (not gonna lie, it sounds so similar to the NodePort)
+  Again, "TargetPort" is for the Pod, and "Port" is for the ClusterIP/Service. (It's not drawn here)
+  
+                 ┌────────────┐   ┌────────────┐   ┌────────────┐   ┌────────────┐    
+                 │  Pod's IP  │   │  Pod's IP  │   │  Pod's IP  │   │  Pod's IP  │    
+    frontend     |            |   |            |   |            |   |            |    
+                 │ 10.244.0.1 │   │ 10.244.0.2 │   │ 10.244.0.3 │   │ 10.244.0.4 │    
+                 └──────┬─────┘   └──────┬─────┘   └──────┬─────┘   └──────┬─────┘    
+                        └────────────────┴───────┬────────┴────────────────┘          
+              ┌──────────────────────────────────┴───────────────────────────────────┐
+              |    backend cluster forwards requests from frontend to backend pods   |
+              └──────────────────────────────────┬───────────────────────────────────┘
+                                                 |                                    
+                        ┌────────────────┬───────┴────────┬────────────────┐          
+                 ┌──────┴─────┐   ┌──────┴─────┐   ┌──────┴─────┐   ┌──────┴─────┐    
+                 │  Pod's IP  │   │  Pod's IP  │   │  Pod's IP  │   │  Pod's IP  │    
+    backend      |            |   |            |   |            |   |            |    
+                 │ 10.244.1.1 │   │ 10.244.1.2 │   │ 10.244.1.3 │   │ 10.244.1.4 │    
+                 └──────┬─────┘   └──────┬─────┘   └──────┬─────┘   └──────┬─────┘    
+                        └────────────────┴───────┬────────┴────────────────┘          
+                                                 |                                    
+              ┌──────────────────────────────────┴───────────────────────────────────┐
+              |   database cluster forward requests from backend to database pods    |
+              └──────────────────────────────────┬───────────────────────────────────┘
+                                                 |                                    
+                        ┌────────────────┬───────┴────────┬────────────────┐          
+                 ┌──────┴─────┐   ┌──────┴─────┐   ┌──────┴─────┐   ┌──────┴─────┐    
+                 │  Pod's IP  │   │  Pod's IP  │   │  Pod's IP  │   │  Pod's IP  │    
+    database     |            |   |            |   |            |   |            |    
+                 │ 10.244.2.1 │   │ 10.244.2.2 │   │ 10.244.2.3 │   │ 10.244.2.4 │    
+                 └────────────┘   └────────────┘   └────────────┘   └────────────┘    
+
+NodePort: To connect to nodePort service we can use: <nodeIP>:<nodePort>
+
+But clusterIP doesn't have such thing. So how to connect to clusterIP?
+
+In the settings, there's a thing called "clusterIP", use that with the port, so <clusterIP>:<port> 
+
+NodePort vs ClusterIP:
+- It's right to say that NodePort is ClusterIP but with extra stuff.
+- Extra stuff = NodePort allows both internal and external source to curl to the Pods. Whereas ClusterIP only allows internal source.
+- Try this with NodePort
+  1. curl (node's IP):(nodePort) [[** allow external source to access, node's IP can be from any node!!! Not just from the node that holds the pods, that I'm not sure though xD only tried once **]] 
+  2. k -n default run tmp --image=nginx:alpine --restart=Never --rm -i -- curl (service's name):port [[** allow internal **]]
+  3. k -n default run tmp --image=nginx:alpine --restart=Never --rm -i -- curl (pod's ip)            [[** allow internal **]]
+
+- Try this with ClusterIP
+  1. can't do because ClusterIP is not designed to have nodePort so suck to be you. (need to port-forward to do this)
+  2. k -n default run tmp --image=nginx:alpine --restart=Never --rm -i -- curl (service's name):port [[** allow internal connection from other pods **]]
+  3. k -n default run tmp --image=nginx:alpine --restart=Never --rm -i -- curl (pod's ip)            [[** allow internal connection from other pods **]]
+
+
+- Load balancer:
+  Position a load balancer for our application in the supported cloud provider. (Like aws or gcp?) For example, to distribute load across the server in the frontend tier?
+  Let's take this example:
+  
+                             Cluster 1                                                                    Cluster 2
+  ╔═══════════════════════════╗  ╔═════════════════════════════════╗                                 ╔═════════════════╗ 
+  ║      Node 1.1's IP        ║  ║          Node 1.2's IP          ║                                 ║  Node 2.1's IP  ║ 
+  ║       192.168.1.1         ║  ║           192.168.1.2           ║                                 ║   192.168.2.1   ║ 
+  ║                           ║  ║                                 ║                                 ║                 ║ 
+  ║                 ┌────────────────────────────────────────────────────────────────────────────────────┐             ║
+  ║                 |                                  Service 1: 30008                                  |             ║
+  ║                 └────────────────────────────────────────────────────────────────────────────────────┘             ║
+  ║                        ┌────────────────────────────────────────────────────────────────────────────────────┐      ║
+  ║                        |                                  Service 2: 30009                                  |      ║
+  ║                        └────────────────────────────────────────────────────────────────────────────────────┘      ║
+  ║                           ║  ║                                 ║                                 ║                 ║ 
+  ║     ┌────────────┐        ║  ║  ┌────────────┐ ┌────────────┐  ║                                 ║   ┌─────────┐   ║ 
+  ║     │ Pod's X.A1 │        ║  ║  │ Pod's X.B1 │ │ Pod's X.B2 │  ║                                 ║   │ Pod's Y │   ║ 
+  ║     └────────────┘        ║  ║  └────────────┘ └────────────┘  ║                                 ║   └─────────┘   ║ 
+  ╚═══════════════════════════╝  ╚═════════════════════════════════╝                                 ╚═════════════════╝ 
+  ・Cluster 1: 2 Nodes, 3 Pods. These Pods are meant to do task X. Pod X.A1 can do task X by itself. Pod X.B1 needs help from Pod X.B2, but they all do X.
+  ・Cluster 2: 1 Node, 1 Pod. Do task Y.
+  2 Services: Service 1 and Service 2, manage all 3 nodes from 2 clusters (yeah you can do that, with the selector, like if we set the selector to "type: front-end", then it will cover all pods with that labels, no matter the cluster, no matter the other things in the label like "name" or "app" or whatnot).
+  
+  To do X, we will have 4 options (?):							  To do Y, we will have 2 options (?):
+  ・192.168.1.1:30008										 ・192.168.2.1:30008
+  ・192.168.1.2:30008										 ・192.168.2.2:30009
+  ・192.168.1.1:30009
+  ・192.168.1.2:30009
+  
+  This is too many, so LoadBalancer help by grouping them all into 1 easy-to-remember name like DoX.com (to do X) or DoY.com (to do Y). This thing is done by the GCP thingy.
+  
+=======================================================================================================================================================================================================
+
+Setting up env
+
+lsmod | grep br_netfilter
+sudo modprobe br_netfilter
+
+cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+EOF
+
+sudo sysctl --system
+
+sudo rm /etc/containerd/config.toml
+sudo systemctl restart containerd
+kubeadm init --pod-network-cidr 10.244.0.0/16 --apiserver-advertise-address 192.168.56.2
+
+mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+sudo kubeadm join 192.168.56.2:6443 --token lifuhx.td2au5jth0h5hjcf --discovery-token-ca-cert-hash (filling in the hash here sha256:......)
+
+if image is stucked for a while at ContainerCreating:
+1. Run kubectl -n kube-system edit configmap coredns
+Then delete the line that says loop, and save the configuration.
+2. Run kubectl -n kube-system delete pod -l k8s-app=kube-dns to remove the CoreDNS pods, so new ones can be created with new config.
+3. Run kubectl get pods --all-namespaces again 
+
+=======================================================================================================================================================================================================
+
+Namespace:
+
+┌────────────────────────────┐
+|┌─────┐┌─────┐┌─────┐┌─────┐|	Namespace doesn't have any control or management responsibility for nodes.
+|│ Pod ││ Pod ││ Pod ││ Pod │|	Like how deployement doesn't care about nodes, it just cares about the pods it has to watch over.
+|└─────┘└─────┘└─────┘└─────┘|	
+|         Namespace          |
+└────────────────────────────┘
+
+Say: 2 Marks in 2 households. One is Mark Smith (1) and the other is Mark Williams (2).
+People in Smith's house call (1) Mark and call (2) Mark Williams.
+People in Williams's house call (1) Mark Smith and call (2) Mark.
+People outside of both household call (1) Mark Smith.
+                                 call (2) Mark Williams.
+Smith's house has its own set of rules and defines who does what. It has its own set of resources they can consume. And so does Williams's house.
+These houses are the analogy for Namespace. 3 types:
+- Default: created automatically by kubernetes when the cluster is first set up. So far we've been working on this thing.
+- Kube-system: After the cluster is first set up, kubernetes creates a set of pods and services for its internal purpose, such as those required by the networking solution. To prevent the user accidentally deleting or modifying these services, they are all created in kube-system.
+- kube-public: also created automatically by kubernetes. This is where the resources are available to the users are created.
+
+A common example irl is: cosmos, fanp, backend
+NOTE: The fanp-stg, fanp-prod, zeals-sandbox, ... are contexts.
+
+In the same namespace: backend can connect to the db with just: 					mysql.connect("db-mysql")
+But in diff namespace: backend can connect to the db in the "fanp" namespace with something like: 	mysql.connect("db-mysql.fanp.svc.cluster.local")
+We can do this because when the service is created, a DNS entry is automatically added in this format (the ".fanp.svc.cluster.local").
+
+Analytics: (sometimes, just "db-mysql.fanp" is good enough for cross namespace, but I'm not told when that's good enough :weird:)  (replace db-mysql for user-dossier for better imagination).
+	db-mysql	.      fanp	.	 	   svc			.			cluster.local
+      service name	namespace's name        subdomain for the service		default domain name of the kubernetes cluster
+
+To make sure the default name space of a certain thing is X. We can add the namespace parameter to the metadata of the yaml file. NOTE: I've never seen this before lol.
+To limit the resource in namespace, we create ResourceQuota.
+
+=======================================================================================================================================================================================================
+
+Imparative vs Declarative approach.
+
+Analogy: visit a friend's house at 500 Street D.
+
+Imparative: Hire taxi, give step by step instruction like go to Street A, turn left to Street B, go ahead and turn right to Street C, go ahead and turn left to Street D. Target should be 500m away.
+Specify what to do and more importantly, how to do. 
+Example irl: when provisioning infrastructure: Preparing instruction like this:
+```
+1. Provision a VM by the name "web-server"
+2. Install NGINX.
+3. Edit the env file to use port "8080".
+4. Edit the env file to web path "/var/www/nginx".
+5. Load the webpage to "/var/www/nginx" from "git clone ..."
+6. Start the NGINX server.
+```
+
+----------------------------------
+
+Declarative: Define the final destination, 500 Street D. And the taxi driver will know how to get there by themselves. (either by asking the system like Google map or some maps).
+Specify only what to do.
+Example irl: when provisioning infrastructure: Prepare a file like this:
+```
+VM Name: "web-server"
+Package: nginx
+Port: 8080
+Path: /var/www/nginx
+Code: git clone ...
+```
+
+If we need to make some changes, like updating version of the nginx:
+Imperative: preparing another instruction.
+Decalartive: fix the file.
+
+In kubernetes:
+
+Imperative: running command like: can use file but remember that, to "run", or "scale", or "set", we must check the existence of the thing we want to update.
+"kubectl run ...", "kubectl scale ...", set, edit, expose, replace, ... something not related to the file.
+
+Declarative: make a yml file to define the expected state of the applications in the kubernetes cluster. Doesn't care if the thing exists or not. As long as all the defined rules are met, it's okay.
+"kubectl apply ..." only
+
+=======================================================================================================================================================================================================
+
+Scheduler (responsible for identifying the right node to place a container on based on the container's resource requirement, the worker node's capacity, other contraints, distributing works or containers across multiple nodes, ...)
+
+Normally, each pod has nodename set to nothing by default. K8s will update the node name automatically when creating manifest file.
+The scheduler will go to all the pods, look for those without the nodename. They are the candidate for the scheduling. It will identify the right node for the pods by running some kind of algorithm.
+Then it will bind the pod to the node by creating a binding object. (like adding "nodeName: node02" to the pod's manifest file, or having a "Binding" object)
+
+Without the scheduler to monitor and schedule node, the node will forever be in the pending state. We will have to assign pod to node manually.
+
+(If the pod is in pending state, and there's no node in the "kubectl describe ...", then it means that there's no scheduler).
+
+After deployed, the pod's nodeName can't not be updated. If we really want to update the nodeName, then we can create a binding object.
+``` apiVersion: v1, kind: Binding, metadata, target: ...```
+
+=======================================================================================================================================================================================================
+
+Label and selector: a way to group thing together (so we can do things like Development/ReplicaSet's selector's matchLabel or Service's selector)
+- Labels are specified in the metadata's labels (there's an "s" because 1 object can have many labels (properties)).
+
+the list in matchLabels use OR logic.
+
+As long as the target has 1 matching label, that's good enough. Example:
+
+matchLabels				labels:
+version: v1				version: v1
+extra: extra				something-extra: really-extra
+
+^^^ the example above count as a matching result.
+
+Annotation: marking other details for info purpose. E.x: name, version, build info, ...
+
+=======================================================================================================================================================================================================
+
+Taints and tolerants: to restrain what pods are placed on what nodes.
+
+Analogy: to prevent bug landing on the person, we use spray, we put a layer of taint wrapping us. Now 2 cases:
+- If the bug cannot resist the spray (taint), or we can say, the bug is intolerant of the taint, the taint will send that bug away.
+- If the bug CAN resist the spray (taint), or we can say, the bug's tolerant to the smell of the spray, the bug can approach and land on the person.
+So 2 factors: the taint on the person and the tolerant of the bug to that taint.
+
+In k8s, the person is a node, and the bugs are the pods.
+Taints and tolerants cannot assure that the desired pod will land on a certain node. It can only make sure that if there's a pod landing on a node, then that pod is compatible.
+
+The Master node is tainted automatically when k8s setup stuff to prevent pods getting scheduled on the master node.
+
+Node selectors: say, we have 3 nodes, with 3 different sizes and capabilities. And we have multiple pods. We will want to provision pods that involve heavy work-load to the largest node, pods that involve light work-load to smaller nodes. So on and so forth. Adding the nodeSelectors in the pod-definition file can help with this problem. Also, nodeSelectors feels awfully lot like taints and tolerants. This selector only has AND requirements, no OR. So if we want to provision pods in Medium or Large node, we can't do that with this.
+
+Node affinity: Help with the OR problem above, provision pods in Medium or Large node. Very complicated to setup though. We have a bunch of operators for this thing. Like "In", "NotIn", "Exists", ...
+Seems like only 6 operators: "In", "NotIn", "Exists", "DoesNotExist", "Lt", or "Gt".
+For the "Exists" operator, sometimes, when we have too many small pods, we can set label to only large + medium pods, and leave the small pods empty, and the "Exists" operator will do the trick.
+
+The long ass sentence is the type of the affinity:
+Avaiable:
+requiredDuringSchedulingIgnoredDuringExecution
+- [SCHEDULE]  this pod must be placed on the node that meets all requirements during scheduling.
+- [EXECUTION] even if there are additional changes, the pod will ignore all the rules during execution.
+prefferedDuringSchedulingIgnoredDuringExecution
+- [SCHEDULE]  this pod will be placed anywhere if there's no satisfying node during scheduling.
+- [EXECUTION] even if there are additional changes, the pod will ignore all the rules during execution.
+
+Planned:
+requiredDuringSchedulingRequiredDuringExecution
+- [SCHEDULE]  this pod must be placed on the node that meets all requirements during scheduling.
+- [EXECUTION] if there are additional changes during execution, and the pod no longer satisfy all the requirement, it will be killed.
+
+
+Compare: so the 2 things sound similar, (Taints and tolerants) and (Selectors and affinity)
+The 2 things compliment each other. Example: Try to schedule this:
+╔═══════════╗   ╔═════════╗   ╔══════════╗  ╔════════════╗   ╔════════════╗   ╔════════════╗
+║ Pod Green ║   ║ Pod Red ║   ║ Pod Blue ║  ║ Pod Grey 1 ║   ║ Pod Grey 2 ║   ║ Pod Grey 3 ║
+╚═══════════╝   ╚═════════╝   ╚══════════╝  ╚════════════╝   ╚════════════╝   ╚════════════╝
+╔════════════╗  ╔═══════════╗ ╔══════════╗  ╔═════════════╗  ╔═════════════╗  ╔═════════════╗
+║ Node Green ║  ║ Node Blue ║ ║ Node Red ║  ║ Node Grey 1 ║  ║ Node Grey 2 ║  ║ Node Grey 3 ║
+╚════════════╝  ╚═══════════╝ ╚══════════╝  ╚═════════════╝  ╚═════════════╝  ╚═════════════╝
+
+- If only taints and tolerants: it will make sure that the nodes always contain the right pods, but it can't make sure that the pods will always land on the right node (like the node without taint).
+╔════════════╗  ╔═══════════╗ ╔══════════╗  ╔═════════════╗  ╔═════════════╗  ╔═════════════╗
+║ Node Green ║  ║ Node Blue ║ ║ Node Red ║  ║ Node Grey 1 ║  ║ Node Grey 2 ║  ║ Node Grey 3 ║
+║            ║  ║           ║ ║          ║  ║             ║  ║             ║  ║             ║
+║1.Pod Green ║  ║           ║ ║2.Pod Red ║  ║ 3. Pod Blue ║  ║4. Pod Grey 1║  ║5. Pod Grey 2║
+║            ║  ║           ║ ║          ║  ║6. Pod Grey 3║  ║             ║  ║             ║
+╚════════════╝  ╚═══════════╝ ╚══════════╝  ╚═════════════╝  ╚═════════════╝  ╚═════════════╝
+- If only affinity: it will make sure that the pods always land on the right nodes, but it can't make sure that the node will not contain junk pods. (there's a chance that Pod grey will land on node green).
+╔════════════╗  ╔═══════════╗ ╔══════════╗
+║ Node Green ║  ║ Node Blue ║ ║ Node Red ║
+║            ║  ║           ║ ║          ║
+║1.Pod Green ║  ║3. Pod Blue║ ║2.Pod Red ║
+║  Pod Grey  ║  ║           ║ ║          ║
+╚════════════╝  ╚═══════════╝ ╚══════════╝
+
+- Combination: taint the node first. Apply the tolerants to the pods. Then add affinity to the pods. ==> No more accident.
+╔════════════╗  ╔═══════════╗ ╔══════════╗  ╔═════════════╗  ╔═════════════╗  ╔═════════════╗
+║ Node Green ║  ║ Node Blue ║ ║ Node Red ║  ║ Node Grey 1 ║  ║ Node Grey 2 ║  ║ Node Grey 3 ║
+║            ║  ║           ║ ║          ║  ║             ║  ║             ║  ║             ║
+║1.Pod Green ║  ║3. Pod Blue║ ║2.Pod Red ║  ║   Pod Grey  ║  ║   Pod Grey  ║  ║   Pod Grey  ║
+╚════════════╝  ╚═══════════╝ ╚══════════╝  ╚═════════════╝  ╚═════════════╝  ╚═════════════╝
+
+=======================================================================================================================================================================================================
+
+Resource Requirements and limits,
+
+There're 3 kind of resources: CPU, Mem, Disk. When scheduling, it will look for a node with sufficient resource to place the pod. If there's no existing node can supply enough resource, the pod will be in the Pending state.
+
+By default, k8s doesn't have any standard value on how much a pod may consume or the upper limit so it can be tough for the scheduler to do the scheduling.
+
+So it's a good practice to always set up those value in the namespace before setting up the pods by creating LimitRange!
+(keyword: "memory default namespace" and "cpu default namespace")
+
+But assumes that port will require 0.5 CPU and 256 Mi (Mi is not M, Mi = MB) << The resource requests of a container, the minimum amound of CPU or memory requested by the container. When scheduling, the scheduler will schedule based on this number.
+We can adjust that value by adding the "resources" info in the pod-def file.
+The CPU here can be as low as 0.01 or 1m, but not lower than that.
+1 CPU means 1 vCPU for AWS, 1 GCP Core, 1 Azure Core, or 1 Hyperthread.
+
+Normally, docker doesn't have a limit on how much resource it can consume. This means that 1 pod can drain out all of the existing resource then leave nothing for other pods. 
+To prevent this, k8s set the upper limit is 1 CPU and 512 Mi per container by default. We can adjust these values.
+
+NOTE! The CPU cannot be overloaded (pass the limit points), but the mem can be overloaded. 
+If the pod tries to consume more CPU than its limit, it can't do that at all.
+If the pod tries to consume more memory than its limit constantly, it can do that for a little bit, then it will be killed.
+
+=======================================================================================================================================================================================================
+
+Daemon Sets:
+
+It's like ReplicaSet, help to deploy multiple instance of pods. But it runs 1 copy of pods on each node in the cluster.
+- Whenever a new node is added to the cluster, another copy of pod will be deployed on that cluster.
+- Whenever a node is removed, the copy of pod on that node is also removed.
+
+Usecase for Daemon Sets: Example:
+- if we want to deploy a monitoring agent or a log collector on each node in the cluster so we can monitor our cluster better. (A pod that is a must for every node)
+- or the example of kube-proxy, or networking (WeaveNet), it has to be deployed on every node.
+
+DaemonSets is very very similar to ReplicaSet, the only difference in the definition file is the "kind" in the file.
+
+When scheduling, 
+- in the earlier version, DeamonSets set the nodeName in the pod-definition file to assign pod to the node.
+- currently, it's using node affinity to make sure that the right pod go to the right node.
+
+=======================================================================================================================================================================================================
+
+Static POD
+
+Say, if we have no kube-apiserver to passing commands, no etcd to store data, no scheduler to perform scheduling and no controller to tell which pod will go to this node, not even a buddy node. You are a captain kubelete on a lonely ship in the sea by yourself.
+
+Captain kubelete can actually manage the ship (host) independently, it can still create PODs. Normally, it's kube-apiserver who gives kubelete the details of the pods that need to be created.
+By if the captain is alone, it can grab the data of the PODs in a static source. (like /etc/kubernetes/manifests)
+
+We can add the pod-definition files to that static source. The kubelete will:
+- update the pods if the file is updated.
+- make sure that the pods stay alive.
+- if the definition file is removed, then the respective pod is also removed.
+
+These PODs are static POD. (NOTE: there's no Static ReplicaSet or Static Deployment, there's only Static PODs).
+
+In kubeadm's setting, the path to kubelet will be set up here:
+1. --pod-manifest-path in kubelet.service to set up the Static POD directory.
+2. --config=(pod-definition file path) also in kubelet.service.
+
+In kubelet settings, find the source of the static PODs in `staticPodPath`
+
+
+*run "docker ps" to check for Static POD. Remember when you are alone, there's no kube-apiserver to help you translating those kubectl command.
+
+These static POD can be viewed normally by kubectl (if it's active), but kubectl can't edit or delete them. Must update the files in the static source from the node manifest folder for that.
+
+Main usecases: to deploy controlplane, kube-apiserver, master node, controller, those high stuff.
+
+HOW TO DETECT IF THE POD IS STATIC POD?
+Check the name, if it has the node name at the end, it's the static pod. (-controllerplane, kubeapiserver, controller)
+
+=======================================================================================================================================================================================================
+
+Multiple Scheduler
+
+Normally, the scheduler will schedule pods across nodes evenly, of course with the consideration of affinity and taints and tolerants.						
+
+But if we really need to go above and beyond because of some other requirements (ex: there are pods that can only be scheduled after performing additional checks).
+
+Scheduler is deployed as pods, so if we need more scheduler, deploy the pod, add the scheduler-name to differentiate the customized one with the default one.
+If only 1 scheduler: option --leader-elect=false
+If multiple scheduler: option [--leader-elect=true] and [--lock-object-name=<custom_scheduler_name>]
+
+Normally, customized scheduler will be added to some specific pods only. Add the custom scheduler's name to the pod-definition file's schedulerName (on par with containers)
+
+Maybe rewatch this lecture if we really need to use multiple scheduler: https://www.udemy.com/course/certified-kubernetes-administrator-with-practice-tests/learn/lecture/14295588#questions
+
+=======================================================================================================================================================================================================
+
+Security (Search the Security in Docker in docker.txt)
+
+- In k8s, containers are capsulated in pods. We can choose to configure security settings at the container level or the pod level.
+- If it's configured in the pod level, the security settings will be applied to all the containers within that pod.
+- If it's configured in the container level, it will apply to that container only and overwrite the rules in pod.
+- If we want the pod's container to run as root:
+  - use command id to find the uid of the root user.
+  - set "securityContext.runAsUser: (uid value)" (this can be defined in the pod layers, but the "securityContext.capabilities" must be defined in the container layer).
+=======================================================================================================================================================================================================
+
+ServiceAccount
+
+- In k8s, there're 2 kinds of account: UserAccount and ServiceAccount.
+  UserAccount is used by human. Used for:
+  - For administrator to access the cluster and perform administrative tasks.
+  - For dev to access the cluster to deploy applications.
+  - ...
+  ServiceAccount is used by machine to interact with k8s.
+  - Prometheus to test performance metrics.
+  - Jenkins to deploy application on k8s. (I've used neither of this lol)
+  - Example: 
+    - Build a page using Python and HTML (hosted outside of the cluster), to get the pods of a running cluster and show them on the screen.
+    - To get the pods of a running cluster, we need to query to the k8s API, the server has to be authenticated. ServiceAccount is used for this purpose.
+    - So it's like Github code in some sense. Sometimes, when I run go mod tidy, I have to give it a github code to authenticate.
+    
+Creating ServiceAccount: using normal "kubectl create serviceaccount (name)".
+When a ServiceAccount is created, it creates a token automatically. External application will use this token if they want to be authenticated to use the API point to the k8s.
+The token is stored as a Secret object. So if we want to get the token value:
+- Get the token name from the ServiceAccount. (token name will look like this: (ServiceAccount name)-token-(random string))
+- Run:
+  - kubectl get secret (secret-name) -o yaml (remember to decode using base64 if use this method)
+  - Or kubectl describe secret (secret-name) (this is already the decoded version)
+  
+This token can be used as the bearer token. For example:
+curl (nodeIP):(nodePort)/api -insecure --header "Authorization: Bearer (token here)"
+EX: 
+curl https://192.168.56.70:30008/api -insecure --header "Authorization: Bearer (token here)"
+^^^^ If the application is hosted outside of the target cluster ^^^^
+
+If the application is hosted inside of the target cluster, we can mount the service token secret as the volume inside the pod hosting the application. (<<< I'm confused)
+
+Every namespace in k8s has their own "default" serviceaccount.
+Whever a pod is created, the default service account and its token are automatically mount to that pod.
+Oh, so the gibberish above means that it's been done for us already without further settings? Yes.
+
+kubectl exec -it (pod-name) -- ls (mount destination for service account). The secret is stored in 3 files. The one that stores the actual token is named as "token".
+
+
+####
+If we want to specify a specific serviceAccount. Modify the pod to have the serviceAccountName: (Service-account) (for example: to authenticate the pod to the cluster without having to input the token everytime we want to run something)
+We can't edit the running pod's serviceAccountName.
+####
+
+
+But we can edit the running deployment's pod's serviceAccountName. Because any change to the deployment's template will recreate the pod. :p So basically the same idea.
+
+If we don't want to mount any serviceAccount automatically (using the default serviceAccount): do this `automountServiceAccountToken: false` to the pod.
+
+So we can get the pod's serviceaccount's name by running
+"kubectl get pods -o yaml" and inspect for serviceAccount.
+How can we do it using "kubectl describe pod (pod-name)"?
+
+=======================================================================================================================================================================================================
+
+Multi-container POD
+
+When we need multiple container to work together, we need this (EX: web server and the logging service always come in pair).
+If the one of the containers fail, the entire pod will have to restart.
+
+(Implementation: the same with all partterns, just add a new container setting in the pod definition file)
+ 
+Partern for this kind of POD:
+- Sidecar: 2 containers in the same pod-definition file.
+  - Same network space = refer to each other as local host.
+  - Same volume = no need to establish volume sharing or services between PODs to enable communication.
+
+- Adapter.
+  Take the side car for example. The web server send signal the logging service. But the log the server sends has multiple format (because it comes from many other services)
+  Message 1: 2-Jul: GET "/api.html" 200
+  Message 2: 2/Jul/22: GET "/api.html" 200
+  Message 3: 1656748131 GET "/api.html" 200
+  Because we would like to have a same partern when in come to logging, we can add an adapter to process the log before sending to the central server to save the log.
+
+- Ambassador.
+  When we develop, we have some environment to work on. Dev to dev. Staging to test before the official deploy. And production is the main product.
+  Each environment has its own database.
+  We can set up so the application will always call to the local host, and then the container will proxy the request (like port-forward???) to the correct database, based on the environment.
+
+
+Mentioned above:
+> If the one of the containers fail, the entire pod will have to restart.
+
+What if we want a container run to completion and will not force restart the POD (for example, some token generator, generates 1 token for the POD to use and it's offline).
+We can use initContainers for this.
+initContainers is configured like a normal container but it's in the "initContainers", not "containers".
+The process is: all the containers in "initContainers" will run. After they are done. The POD (not even the containers in "containers") will start the engine.
+(this also means, "initContainers" can use stuff that the "containers" can't, like Secrets)
+The containers in "initContainers" run in sequential order. So order matters here. If one of them fails, k8s will restart the POD until it succeeds.
+
+=======================================================================================================================================================================================================
+
+Probe
+
+Some recap about lifecycle: (Start) -> Pending -> ContainerCreating -> Running
+Pod condition (all true or false value): PodSchedule, Initialized, ContainerReady, Ready.
+
+Readiness Probe
+
+The Ready condition = the application inside the pod is running and ready to receive user traffic.'
+Sometimes, when the container is created, the container is not ready to serve (it takes a long time to get ready), so when the user's requests arrive, it can't give any response, causing loading time for the user. (hit a pot not running on live application). << needs something to tell when the container is really ready to start.
+
+As the developer, we know when the application is ready.
+- For web application, we can setup different kinds of tests or probes (like having /api/ready to test)
+- For DB, we can setup to check if a certain TCP socket is listening.
+- Or execute a custom script in the command that would exit successfully if the app is ready.
+We can setup these conditions in the pod-definition file for the readinessProbe field.
+
+Liveness Probe
+
+In docker, say, if the web application crashes, it will also stop the nginx to function, the container will stay dead until we manually create a new one.
+k8s handle the orchestration for us by automatically recreate the dead containers.
+
+What if the application is not really working but the container still stays alive (for example: infinite loop caused by a bug)
+
+As the developer, we can build a test set to check if the container is healthy. If it's not, recreate the container. Again, like readiness probe:
+- For web application, we can setup different kinds of tests or probes (like having /api/ready to test)
+- For DB, we can setup to check if a certain TCP socket is listening.
+- Or execute a custom script in the command that would exit successfully if the app is ready.
+
+=======================================================================================================================================================================================================
+
+Monitor and Debug application
+
+Currently, k8s doesn't have built-in feature to track metrics like:
+- CPU, memory, network, disk ultilization, ...
+- Number of PODs and the performance metrics of each POD like CPU or memory consumption.
+Have to use 3rd party application like: Metric Server, Prometheus, Elastic Stack, DataDog, dynatrace, ...
+
+Metric Server
+
+- Only 1 Metric Server per cluster. It aggregates stat of nodes and pods in the cluster. It's an in-memory monitoring solution so we can't see the historical logging with Metric Server.
+- It works because:
+  - Kubelet (receiving instructions from kube-apiserver and running pods on the nodes)
+  - Kubelet also contain a sub-component known as cAdvisor (Container Advisor).
+  - cAdvisor is responsible for retrieving info metrics from pods and expose these metrics via Kubelet for the Metric Server.
+
+To run:
+- On minikube, run: minikube addson enable metrics-server
+- On other source:
+  1. clone the metrics-server
+  2. kubectl create -f ./deploy/1.8+/
+  3. Give it some time to process.
+  4. "kubectl top node" to show the CPU and memory consumption of the nodes.
+  5. "kubectl top pod" to show the CPU and memory consumption of the PODs. 
+
+=======================================================================================================================================================================================================
+
+Jobs and Cronjob
+
+Job:
+- There are different types of workloads that a container can serve. So far they are:
+  - tasks that run for a long time and only stop when manually taken down. E.X: web, application, db
+  - tasks that only perform a set of processes in a short amount of time. Like: some computation task, image processing, generating reports and sending emails.
+    - example for this: docker run ubuntu expr 3 + 2. It runs the ubuntu image, do the computation of (3+2) then turns off. Something like this:
+      ======
+      apiVersion: v1
+      kind: Pod
+      metadata:
+        name: web-pod
+      spec:
+        containers:
+        - name: ubuntu
+          image: ubuntu
+          command: ['expr', '3', '+', '2']
+        # This is the reason why the pod keeps getting built back up after finishing its job, this parameter's default value is Always.
+        # restartPolicy: Always
+        # set it like this so it won't restart after done
+        restartPolicy: Never
+      ======
+      
+      If we actually run that pod, k8s will run the pod, compute 3+2, shutdown the pod, then run the pod again, then again and again until it reaches a threshold (idk about this threshold)
+
+- Look at the restartPolicy above, a set of tasks that need to be done in a certain amount of time, get packed into a ReplicaSet is called a Jobs.
+  (Basically, Job is very similar to ReplicaSet, but when the task is finished, it won't rebuild)
+- We can also set the amount of Jobs can be processed in parallel by setting paralellism to a number more than 1. 1 is the default, meaning sequential, one done then another starts.
+
+- CronJob is a job but instead of running once then done, it reruns periodically.
+
+=======================================================================================================================================================================================================
+
+Ingress
+
+(I don't understand this very well, it sounds a lot like LoadBalancer, or the routing in React)
+- Take a look at the NodePort Service notes. As we know with NodePort, the enduser can access to the deployment via: <nodeIP>:<nodePort>. Like: 192.168.1.2:30008
+  Problem 1: NodeIP is not a good thing for marketing, so we config the DNS server to point to the NodeIP. So now, our link will look like this: http://some-stuff.com:30008
+             Solution: update DNS in /etc/hosts to get that thing availbe 
+             # cat /etc/hosts
+             192.168.1.2 some-stuff.com
+  Problem 2: NodePort is also not a good thing for marketing. We know that NodePort is limited to the range 30000 - 32767.
+             One solution is adding a proxy server between the Cluster (or the node) and the DNS. The proxy will request on port 80, then port forward to 30008 (our node)
+             Then we can point the DNS to the proxy-server. Proxy-server will port forward to the node. And now our link becomes: http://some-stuff.com
+
+- When we work with some public cloud environment like GCP, we can create LoadBalancer instead of NodePort and it'll save you all the tricky stuff.
+  GCP has a thing called gcp load-balancer, it does the exact same thing we describe up there.
+  
+- Problem 3: We want to add more services to the same DNS link (the some-stuff.com)
+             For example: before: we serve http://some-stuff.com/watch as a streaming platform, now we want to add http://some-stuff.com/wear as an uber-like service, shipping clothes.
+             
+             To do this, we build the another service, deploy it using another deployment BUT in the SAME cluster. Then create another LoadBalancer for this new snacking service.
+             (more money paying the GCP for the loadbalancer btw)
+             
+- Everytime we introduce a new service, we have to reconfig the load balancer.
+
+- Problem 4: We want to let our enduser using our website with secured method (https), we have to setup SSL. (What's dat?)
+             We can do that either at the application level or at the LoadBalancer or at the proxy server (the gcp load-balancer if we are using GCP)
+             The application level is the no-go because each dev team has their own way of implementing (not good).
+             To minimal the maintenance cost, we want to implement this SSL for all services in one place.
+             
+- So all these problems will become even more sophisticate if our system scale up (he even mention firewall rules, what's dat?)
+
+- To solve all the problem above (without having the extra trouble of system scaling up):
+
+1. We can use reverse proxy (what's dat?) or a load balancing solution like (nginx or haproxy or traefik).
+   Deploy them to a cluster.
+   Configure them to route the traffic to other services. (define URL routes, SSL certificate, ...)
+ 
+2. Or using Ingress. 
+
+- Ingress = a big ass Loadbalancer that can be shared for every services within the same cluster.
+- Ingress helps the endusers access our application using a single external URL that we can configure to route to different services in our Cluster based on the URL path. Also help with the SSL problem. 
+- Though, ingress is still in an object within the system, it needs to be exposed to the outside so we have to expose it using either NodePort or LoadBalancer, but we only do this once so it's better.
+
+(Ingress is the same as 1., but it's implemented by K8s so k8s will do most of the heavy lifting for us, we'll have to do the deploy thingy, and do some configuration for the INGRESS (not the load balancing solution)).
+
+The load balancing solution that we select for Ingress is called "Ingress controller".
+The set of rules we configure are called "Ingress resource".
+
+Again, K8s doesn't come with Ingress controller by default, deploy them first, then we talk about the Ingress controller.
+
+=======================================================
+
+normally, it would be funny-url.com:30008/wear or funny-url.com:30008/play
+
+                              ╔═════════════════════════════════════════════════════════════════╗
+ ┌─────────────────────┐      ║                           Node 1's IP                           ║
+ | curl                |      ║                           192.168.1.2                           ║
+ | funny-url.com:30008 |      ║                                                                 ║
+ | (Node 1's IP)       |      ║                            ┌─────────────────────────┐          ║
+ └─────────┬───────────┘      ║                            |       Internal IP       |          ║
+           |                  ║                            |       10.244.0.0        |          ║
+  if there's a proxy here     ║                            └─────────────────────────┘          ║
+  then we can remove 30008    ║                                                                 ║
+           |                  ║                                                                 ║
+ ┌─────────┴─────────┐   ┌──────────┐   ┌─────────────────┐    ┌─────────────────────┐          ║
+ | DNS /etc/hosts    |   │ NodePort │   │              ┌──┴─┐  │  Ingress Controller │          ║
+ | (Node 1's IP)     ├───┤          ├───┤  Ingress SVC │ 80 ├──┤  Ingress Class      │          ║
+ | funny-url.com     |   │  30008   │   │              └──┬─┘  │  Ingress Config     │          ║
+ └───────────────────┘   └──────────┘   └─────────────────┘    └────────┬────────────┘          ║
+                              ║                                         |                       ║
+                              ║                    ┌────────────────────┴────────┐              ║
+                              ║                    |                             |              ║
+                              ║              ┌─────┴────┐                  ┌─────┴────┐         ║
+                              ║              │ Wear SVC │                  │ Play SVC │         ║
+                              ║              └─────┬────┘                  └─────┬────┘         ║
+                              ║            ┌───────┴──────┐              ┌───────┴──────┐       ║
+                              ║         ┌──┴─┐         ┌──┴─┐         ┌──┴─┐         ┌──┴─┐     ║
+                              ║     ┌───┤ 90 ├───┐ ┌───┤ 90 ├───┐ ┌───┤ 90 ├───┐ ┌───┤ 90 ├───┐ ║
+                              ║     │   └────┘   │ │   └────┘   │ │   └────┘   │ │   └────┘   │ ║
+                              ║     │ Pod Wear 1 │ │ Pod Wear 2 │ │ Pod Play 1 │ │ Pod Play 2 │ ║
+                              ║     │            │ │            │ │            │ │            │ ║
+                              ║     └────────────┘ └────────────┘ └────────────┘ └────────────┘ ║
+                              ╚═════════════════════════════════════════════════════════════════╝
+
+
+=======================================================
+
+Ingress Controller (10:00)
+
+Normally, Ingress alone won't work.
+Solution available for Ingress: GCE: Google's LoadBalancer: nginx, contour, HAPROXY, traefik, lstio. (let's just use nginx)
+
+In order for the Ingress resource to work, the cluster must have an ingress controller running.
+
+From now, when we talk about Ingress Controller we'll talk about nginx, and vice versa.
+
+Ingress Controller has additional intel built into them to monitor the k8s cluster for new definitions or ingress resource, then configure the nginx server (the ingress controller) accordingly.
+nginx is deployed like another deployment in k8s. (the image for this thing seems to be special as well, not just the normal nginx image)
+
+2 annotations: (just use them)
+nginx.ingress.kubernetes.io/rewrite-target: /
+
+Ingress Controller also has IngressClass, think of this thing as some extra addons, if there's an associated IngressClass with the controller, it must be defined in the Ingress definition file.
+
+(try "k get IngressClass -A" first, if there's nothing returned then use this annotation, else set spec.ingressClassName to the IngressClass's name)
+ingressclass.kubernetes.io/is-default-class: "true"
+
+=======================================================
+
+Ingress resource (13:40)
+
+
+The rule can be:
+- route all incoming traffic to a single application (some-stuff.com)
+- or route traffic to different application based on the url (some-stuff.com/watch and some-stuff.com/wear)
+- or route traffic to different application based on the domain (watch.some-stuff.com and wear.some-stuff.com)
+
+Setting up (14:50)
+
+=======================================================
+
+Ingress Controller on its own namespace
+Each namespace must have its own Ingress Resource + Service if it wants to push its stuff to the Ingress Controller. The host can be shared.
+
+rewrite-target: https://www.udemy.com/course/certified-kubernetes-application-developer/learn/lecture/16716434#questions/12438828
+they rewrite the result path (such as "/watch", "/wear" to the rewrite config like "/")
+
+=======================================================================================================================================================================================================
+
+Network policies
+
+- Reading problem: remember to differentiate the conditions. << Like for real, sounds stupid but I failed once. lol fucking PoS.
+- Condition 1:
+    Condition 1.1
+    Condition 1.2
+- Condition 2:
+    Condition 2.1
+
+=======================================================
+
+Traffic
+
+Ingress: incoming request.
+Egress: sending request. (Sending the responding data is not Egress)
+
+(there should be a sending the responding data from frontend to enduser, but I don't have space)
+
+Frontend perspective                                                   Ingress / Egress rule:
+  ┌─────────┐                                                        
+  | Enduser |                                                        Frontend <------------- Ingress 80 
+  └────┬────┘                                                        Frontend -------------> Egress 5000
+       |                                                             
+    Ingress                                                          Backend  <------------- Ingress 5000  
+       |                                                             Backend  -------------> Egress 3306
+       v                                                             
+    ┌──┴─┐                                                           DB       <------------- Ingress 3306 
+┌───┤ 80 ├───┐             ┌──────────────┐             ┌──────────┐ 
+│   └────┘   │-<-------┌───┴──┐           │-<-------┌───┴──┐       │ 
+│  Frontend  ├───────>─┤ 5000 │  Backend  ├───────>─┤ 3306 │  DB   │ 
+│   www:...  │ Egress  └───┬──┘           │         └───┬──┘       │ 
+└────────────┘             └──────────────┘             └──────────┘
+
+=======================================================
+
+Network Security
+
+- A cluster has a set of nodes. Each node has a set of pods.
+- Each node / pod / service has its own IP address.
+
+"ALL ALLOW":
+- Regardless of the solutions implementation, the pods should be able to connect to each other without having to configure any additional settings, like routes.
+(solutions here mean something like: Calico, Weave-net, Romana, Kube-router, Flannel, ...) <<< I never use this so idk much about them.
+
+Looking at the diagram above, we see that we don't want Frontend Pod to be able to connect to DB pod (for security purpose for example).
+==> Need policy on the DB pod to only allow traffic from the Backend pod only. (Allow only ingress from Backend Pod on Port 3306)
+
+Some Network Solution doesn't support NetworkPolicy, so check the docs. Also it won't return any error if it doesn't support, it just won't enforce the policy.
+
+=======================================================================================================================================================================================================
+
+Volumes
+
+Normally, docker container is a temporary thing, it will exist for a short amount of time, then everything related tom it, get destroyed.
+Having the service getting destroyed is okay, but we want to retain the database that comes out of it. So we have Volume.
+This "having volume" is called "attaching volume to the containers"
+
+Normal volumes:
+
+╔════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                                ║
+║                                      /data-volume in node                                      ║
+║                                                                                                ║
+║ ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐ ║
+║ │  Persist   │  │  Persist   │  │  Persist   │  │  Persist   │  │  Persist   │  │  Persist   │ ║
+║ │ Data Block │  │ Data Block │  │ Data Block │  │ Data Block │  │ Data Block │  │ Data Block │ ║
+║ └────────────┘  └────────────┘  └────────────┘  └────────────┘  └────────────┘  └────────────┘ ║
+╚═══════╤═══════════════╤═══════════════╤═══════════════╤═══════════════╤═══════════════╤════════╝
+  ┌─────┴─────┐   ┌─────┴─────┐   ┌─────┴─────┐   ┌─────┴─────┐   ┌─────┴─────┐   ┌─────┴─────┐
+  │    Temp   │   │    Temp   │   │    Temp   │   │    Temp   │   │    Temp   │   │    Temp   │
+  │ Container │   │ Container │   │ Container │   │ Container │   │ Container │   │ Container │
+  └───────────┘   └───────────┘   └───────────┘   └───────────┘   └───────────┘   └───────────┘
+
+Problem: the storage only works for 1 node, what if another node wants to use the same data, they can't because the volume is stored in the node internally.
+Solution: Don't store the data internally lol. Use external db. 
+k8s offers:
+- some db solutions: NFS, GlusterFS, Flocker, ...
+or
+- some public cloud solutions like: AWS, EBS, Azure disk or Google's Persistent Disk.
+
+=======================================================
+
+Persistent Volumes
+
+Problem: with the setup of normal volume, we'll have to setup volume for EVERY-SINGLE pod definition file. That sounds all fine and dandy until you have to make a change to 100 pods. Get rekt.
+Solution: Persistent volumes.	
+
+=======================================================
+
+Persistent Volumes Claim
+
+- It's not Persistent Volumes.
+- Admin creates Persistent Volumes.
+- Other users create Persistent Volumes Claim to use the storage.
+- After created, k8s will try its best to find the most fit storage for the user to use.
+- Persistent Volumes Claim can have selectors in case there are many fitting results.
+- If there's no best solution, it will try to find a storage that exceed the claim's expectation.
+- Persistent Volumes Claim and Persistent Volumes have a 1-to-1 relationship, meaning, the storage defined in Persistent Volumes cannot be shared while an user is using it.
+- If the Persistent Volumes Claim is deleted, based on the "persistentVolumeReclaimPolicy", it will either:
+  - Retain: not deleted but not available.
+  - Delete: automatically deleted along with the Persistent Volumes.
+  - Recycle: not longer supported.
+
+- If the PVC is being used by a Pod, it can't not be deleted. If we do, it'll be in the Pending state, until the pod using it is deleted.
+
+NOTE: it seems like we have to delete stuff in order: Pod > Persistent Volumes Claim > Persistent Volumes. (if I delete right now, it will stay in the Terminated mode forever)
+
+=======================================================
+
+Storage class (optional)
+
+Normally, when we specify storage for the volume, that storage needs to be already created. That's the "Static Provisioning".
+For example, if we want to store stuff in the node (internally), we need to run a job to create the folder (storage) then we create the PersistentVolume definition file.
+Or if we want to store stuff in the google cloud, we have to create a disk on google cloud, and the PersistentVolume file will use the same name as the google cloud storage's name.
+
+What if we want the system to automatically provision stuff when required. Solution: StorageClass.
+If we have StorageClass, we no longer need the PersistentVolume object, we just need PersistentVolumeClaim and StorageClass. In the pvc file, assign the storageClassName to the StorageClass's name.
+
+Creating SC will automatically create a PersistentVolume. It's like how creating Development object will automatically create a ReplicaSet.
+
+VolumeBindingMode:
+- WaitForFirstConsumer means it will only bind the claim to the StorageClass/PersistentVolume only if there's a existing pod wanting to use the SC.
+
+=======================================================
+
+Stateful set (optional)
+
+Example: the most primitive way of setting up db in a server (let's say MySQL), it's to:
+- Install MySQL and create a functioning DB in a server.
+- Install MySQL on some other servers and an empty DB as backup in case the original server fails.
+- If we want to use the backup server, we'll have to replicate the existing data in the original server to the backup one.
+
+We use topology single master, multiple slaves. Master has all rights, slaves can just read.
+1. Master install MySQL, starts the db, load the data to the db.
+2. Slave 1 clone the data from master.
+3. Slave 1 enable continuous replication from master to slave 1 to make sure the db is always in sync.
+4. Slave 2 clone the data from SLAVE 1. (NOT FROM MASTER, this way, having 10 slaves will not fuck the master up).
+5. Slave 2 enable continuous replication from Master to Slave 2 to make sure the db is always in sync. (KEKW)
+Problem: can't do this with Deployment. 
+Reason: this is an async thingy, it has to be sequential. And Deployment will deploy all the pods at once, whereas here, we need to have the POD (named "Master") to be up first, then POD (named "Slave 1"), then POD (named "Slave 2"), ...
+Also, because the master IP address must not changes (all the slaves are looking at that one), Deployment will change the IP address if the Master POD needs to be recreated.
+
+Solution: Stateful Sets.
+Compared to Deployments:
+- Similarities: They create Pods based on a template, can scale up, scale down, rolling update, rollback, ...
+- Differences:
+  - StatefulSet creates Pods in sequential order.
+  - StatefulSet set an unique index to each pod. Start from 0 and increment by 1. The name of the pod will be <StatefulSet's name>-<index>. For example: mysql-0, mysql-1, mysql-2, ...
+    ==> constant name, we can rely on these name, like the Slave Pods now will always know their master's name.
+  
+  - Deployment creates all the Pods at the same time.
+  - Pods created from Deployments though have their unique name, they are not constant, they will have a different name when recreated.
+  
+The definition file for StatefulSet is exactly like Development but with the "kind: StatefulSet" and the "spec.serviceName".
+
+Headless service (optional, ain't gonna write any note for this one, better to rewatch the thing):
+https://www.udemy.com/course/certified-kubernetes-application-developer/learn/lecture/17478630#questions 
+
+=======================================================
+
+Normally, we'll have 1 Storage class -> Spawn 1 Persistent Volume -> Support multiple Persistent Volume Claim -> Point to only 1 db instance at a time.
+┌────┐      ┌────┐      ┌─────┐        
+| SC ├────>─┤ PV ├────>─┤ PVC │        
+└────┘      └────┘      └──┬──┘  ┌────┐
+                           ├─────┤ DB |
+                           |     └────┘
+                           |     ┌────┐
+                           ├─────┤ DB |
+                           |     └────┘
+                           |     ┌────┐
+                           └─────┤ DB |
+                                 └────┘
+
+What if we need:     1 Storage class -> Multiple Persistent Volumes -> Support multiple Persistent Volume Claim -> Each PVC points to its own db's instance (I never get this situation before).
+
+ ┌────┐      ┌────┐        
+ | SC ├────>─┤ PV │        
+ └────┘      └──┬─┘  ┌─────┐     ┌────┐
+                ├────┤ PVC ├─────┤ DB |
+                |    └─────┘     └────┘
+                |    ┌─────┐     ┌────┐
+                ├────┤ PVC ├─────┤ DB |
+                |    └─────┘     └────┘
+                |    ┌─────┐     ┌────┐
+                └────┤ PVC ├─────┤ DB |
+                     └─────┘     └────┘
+
+Watch this: https://www.udemy.com/course/certified-kubernetes-application-developer/learn/lecture/17478686#questions
+Keyword: volumeClaimTemplates in the StatefulSet definitin file.
+
+=======================================================================================================================================================================================================
+
+Authentication
+
+About the host that forms the cluster:
+- All access to the host must be secured:
+  - Root access disabled.
+  - Password based authentication disabled.
+  - Only SSH Key authentication available.
+  - Any necessary security measurement for the actual physical/virtual infrastructure that hosts k8s.
+
+
+Securing kube-apiserver:
+
+For bots (for integration purpose) that need access to k8s, we use ServiceAccount.
+
+For developers who want access to k8s:
+We can have:
+- Files that store a bunch of (Username and Password)
+- Files that store a bunch of (Username and Token)
+- Certificates
+- External Authentication providers (Ex: LDAP)
+
+The default config file is stored in ./root/.kube/config (config is the file!)
+if we want to use another config file, tag the "--kubeconfig (path to config file)"
+
+=======================================================
+
+API Group
+
+Besides kube-apiserver (which is kubectl in our case), we can interact with k8s by using curl and API stuff.
+
+/version: for versioning
+/metrics: for monitoring the health of the cluster.
+/healthz: for monitoring the health of the cluster. (same with /metrics)
+/logs: for integerating with the 3rd party logging applications.
+
+2 API categories:
+Core group: /api -> /v1
+- Namespaces, Pods, ReplicaController.
+- events, endpoints, Nodes.
+- bindings, PersistentVolume, PersistentVolumeClaim
+- ConfigMaps, Secrets, Services.
+- ...
+
+Named group: /apis
+- /apis has more stuff: /apps, /extension, /networking.k8s.io, /storage.k8s.io, /authentication.k8s.io, /certificates.k8s.io.
+- Each of those stuff has even more stuff, each stuff has their own set of 6 actions (deployment has all 6 actions, ReplicaSet has 6 actions, ...)
+
+(the developments, replicasets, statefulsets, all the stuffs and jazz at the bottom layer are called "Resource")
+API: 							Actions (or called "verb"):
+- /apps						- List
+  -> /v1 (API Version)              			- Get
+  - /deployments					- Create
+  - /replicasets					- Delete
+  - /statefulsets					- Update
+- /extensions						- Watch
+- /networking.k8s.io -> /v1				
+  - networkpolicies
+- /storage.k8s.io
+- /authentication.k8s.io
+- /certificates.k8s.io -> /v1
+  - /certificatesigningrequests
+  
+About API Version, we have 3 types: alpha (v1alpha1), beta (v1beta1), GA (stable) (v1).
+
+These 3 types can co-exist in the definition file, but when:
+- we query via kubectl, it will only look at the defined preferred version (for example, Deployment's preferred version is GA(v1))
+- we create via kubectl, it will convert the version to the defined preferred version, before store the information of the pod to the etcd.
+
+To change the preferred API Version, we can update the --runtime-config in /etc/kubernetes/manifest/kube-apiserver.yaml. But I doubt if we ever want to do that.
+
+If we ever develop something for k8s, check the deprecation rule here:
+https://kubernetes.io/docs/reference/using-api/deprecation-policy/
+or this video: https://www.udemy.com/course/certified-kubernetes-application-developer/learn/lecture/28855922#questions
+
+To update API Version of these resource, run: kubectl convert -f <path-to-old-file> --output-version <new-api>
+Example: kubectl convert -f ./nginx.yaml --output-version apps/v1
+
+To find the preferred version of anything: 
+kubectl proxy
+curl localhost:8001/apis/(that-thing)
+
+=======================================================
+
+Authorization
+
+- Mechanism: Node, ACBC (Attribute based authorization), RBAC (role based authorization), Webhook.
+
+- Node: ???
+
+- ACBC: associate a group of users with a set of permissions.
+  For example:
+  - dev-user-UD can view, create, delete pods.
+  {"kind": "Policy", "spec" : {"user":  "dev-user-UD", "namespace": "*", "resource": "pods", "apiGroup": "*"}}
+  - dev-user-RPA can view, create, delete pods.
+  {"kind": "Policy", "spec" : {"user":  "dev-user-RPA", "namespace": "*", "resource": "pods", "apiGroup": "*"}}
+  - admin-user can view, approve CSR. (idk what CSR is)
+  {"kind": "Policy", "spec" : {"user":  "admin-user", "namespace": "*", "resource": "CSR", "apiGroup": "*"}}
+  
+  if we want more rules, we'll have to add them rules manually and restart the kube-apiserver.
+  
+- RBAC: associate role with a set of permissions. (Zeals use this)
+  Creating roles, like:
+  - "Developers" can view, create, delete pods.
+  - "Admins" can view, approve CSR.
+  
+  Then associate the user to thse roles. If we need to update, we update the permission of the roles and no restart required.
+  
+- Webhook: outsource permission distributing mechanism (like an official universal app saying who is allowed to do what, e.x: dev can view deploy, admin can view update deploy, ...)
+
+2 more modes: AlwaysAllow, AlwaysDeny. The default is AlwaysAllow. It's setup in the authorization mode for the api-server.
+To check the current authorization-mode, get all pods in all namespaces.
+Then check for the kube-apiserver-... in the kube-system namespace.
+
+It looks like this:
+--authorization-mode=Node,RBAC,Webhook, ...
+
+kube-apiserver will check the permission against Node,RBAC,Webhook in order.
+For example, we want to access a certain pod, kube-apiserver will check the authority against Node, then RBAC, then Webhook. If there's just 1 success result out of the 3, it will treat it as a success authorization.
+
+=======================================================
+Admission controller
+
+So far, we've learned that when an user send a request to kube-apiserver (for example, by using kubectl), the kube-apiserver will:
+- Checking for authentication, making sure that the user who sends the request exists in the system.
+- Checking for authorization, making  sure that user has the permission to trigger that command.
+
+Problem: what if I want more control, saying, all the command must be ran by root, or all the image must not have the "latest" tag, or the pods can only have a certain amount of capabilities only (like only "NET_ADMIN" and "SYS_TIME"), or the metadata must always contain labels?
+Solution: Admission controller.
+
+Some prebuilt components:
+- AlwaysPullImages: to ensure that when the pod is created, the image is already pulled.
+- DefaultStorageClass: Observe the creation of PVCs and automatically add the default StorageClass to them.
+- EventRateLimit: Help to set a limit on the requests that the server can handle at a time to prevent the API server from being flood with requests.
+- NamespaceExists: reject requests to the non-existing namespaces. (Deprecated, replaced by NamespaceLifeCycle)
+- NamespaceAutoProvision: (this is not enable by default), create the namespace if it doesn't exist. (Deprecated, replaced by NamespaceLifeCycle)
+- NamespaceLifeCycle: reject requests to the non-existing namespaces, the default namespace, such as kube-system or kube-public, cannot be deleted.
+- ...
+
+If the k8s is running as a pod (example, by ssh to the pod), we can check our admission controller by using `kube-apiserver -h | grep enable-admission-controller`.
+We can also check the progress when k8s is running as the pod like this: `ps -ef | grep kube-apiserver | grep admission-plugins`
+
+
+If using minikube, I'll use:
+`kubectl exec pod/kube-apiserver-minikube -n kube-system -- kube-apiserver -h | grep enable-admission-plugins`
+We can also check the progress too, run the `kubectl exec ... -- ps -ef | grep kube-apiserver | grep admission-plugins` << not test yet.
+
+Otherwise, we'll have to detect where the kube-apiserver is (most of the time it's in kube-system), and run the command `kubectl exec ... -- ...` in the kube-apiserver.
+
+The admission-plugins setting is stored in /etc/kubernetes/manifests/kube-apiserver.yaml. If we want to enforce more Admission controller, then edit that file, at the --enable-admission-plugins.
+
+Of course, we can disable the admission plugins too, edit the --disable-admission-plugins in /etc/kubernetes/manifests/kube-apiserver.yaml.
+
+We have 2 types of the admission controller: validation admission controller and mutating admission controller.
+- validation admission controller: will not allow the request to be executed if the condition is not met.
+- mutating admission controlle: will alter the request, mostly adding missing properties in the request.
+
+Some controllers can do both, both mutating and validating. In this case, the mutating part will be executed first, then the validation part will do the validation after.
+
+We can enforce our customized admission controller via: MutatingAdmissionWebhook and ValidatingAdmissionWebhook.
+How to enforce it? Watch https://www.udemy.com/course/certified-kubernetes-application-developer/learn/lecture/29039640#notes at 3:20.
+
+The customized admission controller will only affect the specified resources with the specified action, so be mindful about that.
+
+
+
+- Denies all request for pod to run as root in container if no securityContext is provided.
+
+- If no value is set for runAsNonRoot, a default of true is applied, and the user ID defaults to 1234
+
+- Allow to run containers as root if runAsNonRoot set explicitly to false in the securityContext
+
+=======================================================================================================================================================================================================
+
+CRD (Custom resource definitions) - think of this like a customizable Pod.
+
+Get all crd command: kubectl get crd (this is just to get the template, not the object)
+k api-resources | grep -i (the resource name) to make sure the correct version.
+
+Say, we have a Deployment for 3 replicas of a pod template.
+When we create the Deployment, k8s will create the deployment and store the information of the deployment in etcd (same with get, update, and delete).
+
+But what about the 3 replicas that the Deployment is managing currently?
+It's the Deployment Controller's job. (it's built-in in k8s)
+
+The controller job (is mentioned somewhere up there):
+- Monitor the resources that it's appointed to in the etcd (Deployment controller monitor the Deployment's status).
+
+This is highly complicated, I can't write a concise note for this, watch this video instead:
+https://www.udemy.com/course/certified-kubernetes-application-developer/learn/lecture/29112774#questions
+
+Without the controller for the custom resource definition, we can do stuff like create, update, delete, get, describe, because we already have the default Controller helping us doing so.
+Say, we need to do some extra stuff (like book the flight every time we create a Custom stuff), then we need a custom controller.
+How to build one: https://www.udemy.com/course/certified-kubernetes-application-developer/learn/lecture/29112776#questions (Actual coding)
+
+Custom controller will be created and operated as a Deployment.
+
+=======================================================
+
+Operator framework
+
+Up there, we learn that to have a fully functioning Custom resource definition, we need to:
+1. Create a CustomResourceDefinition object.
+2. Create a Custom controller (using code, golang, pulling repo and go build stuff, dw about it, if I have to worry about it then this course won't help).
+
+Operator framework help combining the 2 steps into 1.
+
+A weird lesson, I don't know what note to take, watch this instead: https://www.udemy.com/course/certified-kubernetes-application-developer/learn/lecture/29112778#questions
+
+=======================================================================================================================================================================================================
+
+Helm
+
+Problem: When the project scale, though k8s helps with the scaling problem, we still need an easy way to handle k8s (like there are a lot of yaml file to fix to update a change, and even more if we want to remove or add something new).
+Solution: Helm.
+
+Think of Helm like the wizard installer. Example: Games are consists of many audio, graphic files, many logic files. Instead of downloading those files one by one, we have an installer to download all of those files for us. 
+
+Helm also helps us storing all the special value in one file (let's call it the "key" file)
+Unlike ConfigMap, Helm will look at the "key" file, look for changes, and apply those changes to all the related objects.
+(Why don't we use ConfigMap, we can do the same thing though??? But instead of updating changes to the objects, we update the ConfigMap).
+
+Helm vs ConfigMap:
+
+Helm helps you manage Kubernetes applications — Helm Charts help you define, install, and upgrade even the most complex Kubernetes application. Charts are easy to create, version, share, and publish — so start using Helm and stop the copy-and-paste.
+
+Configmap just stores some values to be used in the cluster.
+
+Helm Charts = (values.yaml) file + (other yaml files using the constant value in values.yaml file)
+Helm Chart: Kubernetes YAML template-files combined into a single package, Values allow customisation
+
+Helm Release: Installed instance of a Chart
+
+Helm Values: Allow to customise the YAML template-files in a Chart when creating a Release
+
+*Refer to constant values like this: "{{ .Values.key }}"
+The Chart also has its own freaking yaml file.
+
+helm is briefly introduced here soz.
+
+=======================================================================================================================================================================================================
+
+Skaffold and Kustomize
+(https://www.youtube.com/watch?v=9sLULxGir9c&ab_channel=ChukLee)
+
+Skaffold is like nodemon. The reason why dev using nodemon instead of Skaffold because:
+- Skaffold is essentially kubernetes. So the dev will have to wait a bit so the older pods will be fully terminated, and the new pods are officially active.
+- Nodemon has no lag time, once done render, boom, it'll be on the screen.
+
+				  Kubernetes Development Cycle
+
+┌────────────────────────────────────┐ ┌────────────────────────────────────────────────────────────────────┐
+|     Continuous Integration (1)     | |                      Continuous Delivery (2)                       |
+|┌─────────┐┌───────┐┌─────┐┌──────┐ | | ┌─────────────────┐ ┌─────────────────┐ ┌────────────────────────┐ |
+|│ Develop ││ Build ││ Tag ││ Push │ | | │ Render Manifest │ │ Deploy Manifest │ │ Forward Ports and Logs │ |
+|└─────────┘└───────┘└─────┘└──────┘ | | └─────────────────┘ └─────────────────┘ └────────────────────────┘ |
+|                                    | |                                                                    |
+└────────────────────────────────────┘ └────────────────────────────────────────────────────────────────────┘
+
+Manifest means the thing yaml files required to deploy the application (Deployment + Secret + ConfigMaps + Services + Volumes + Ingress + v.v...)
+
+- Develop: developing stuff.
+- Build: use Docker to build container. (docker build --> docker push)
+- Tag: Giving a tag on github.
+- Push: Push images to registry (push the thing we just built)
+- Render Manifest: Update the old images references in the manifest with the new one.
+- Deploy Manifest: Basically run the `kubectl apply -f ...` to all the affected manifest files. (kubectl apply -f ...)
+- Forward Ports and Logs: Observe if there's any bug and repeat the cycle. (kubectl port-forward pod-name your-port:pod-port --> kubectl logs -f)
+
+Kustomize will help us with all the steps in the Continuous Develivery (2) phase.
+
+Skaffold will:
+- monitor if there's any changes in the source code.
+- if there's any changes: it'll help us automated all the steps from Build --> Tag --> ... --> Forward Ports and Logs
+
+Some command for skaffold:
+- skaffold build: build
+- skaffold run  : build --> deploy
+- skaffold dev  : build --> deploy --> port-forward --> make changes --> build --> deploy --> ..(repeat the cycle) 
+
+order when making change:
+Change in src + Dockerfile --> change in skaffold in versioning (if we hardcode it, else, ignore this) --> change in the manifest files.
+
+
+NOTE: Skaffold can only update what are changed. So say, if the ConfigMap is updated, ONLY THE CONFIGMAP is updated.
+The pods that are actually using the ConfigMap won't be recreated. We'll need to kill the pods manually to have the new ConfigMap properly implemented.
+┌──────────────────────────────────┐
+|  microservice                    |
+|      ├─ service 1                |
+|      |      └─ skaffold.yaml     |
+|      ├─ service 2                |
+|      |      └─ skaffold.yaml     |
+|      └─ service 3                |
+|             └─ skaffold.yaml     |
+|  skaffold.yaml                   |
+└──────────────────────────────────┘
+
+Kustomize
+
+Kustomize is like a patch note system.
+We have our Deployment yaml left untouched. And only making changes to kustomize.
+Say, if we have 3 environment: dev (1 pod, 500Mi), stg (2 pods, 500Mi), prd (10 pods, 10TB).
+We'll setup a common deployment.yaml, leave the replicaCount and resources, empty, and we can use kustomize to make the differences.
+During the demo of Skaffold, we realize that all the number are set in stone. If we need to make any changes to the replicas, we'll have to update the deployment.yaml file manually.
+It can cause risk.
+
+To update such changes, 2 options:
+- Pull the master code, open a new branch, make some changes. But you know, master code for andromeda changes like 10 times a minute. So good luck keeping up with it as a human.
+- Helm chart.
+  - Take some time ot make your own helm chart (idk how to make it :p, heard that it also needs testing and a bunch of other shit)
+  - Chart has to anticipate and cover all usecase? (Like cover all the thing that can, and will be changed?)
+
+One way Kustomize can help us preventing such risk is by parameterize the every thing we want to change.
+
+Behind the scene of the way Kustomize works:
+There will be 1 base file.
+For each environment, there will be a patch file. So say, 3 env: dev, stg, prd. Then there will be 3 patch files.
+Kustomize will combine into 3 output.yaml.
+┌──────────────────────────────────┐       ┌──────────────────────────────────┐       ┌──────────────────────────────────┐
+|  apiVersion: v1                  |       |  apiVersion: v1                  |       |  apiVersion: v1                  |
+|  kind: Pod                       |       |  kind: Pod                       |       |  kind: Pod                       |
+|  metadata:                       |       |  metadata:                       |       |  metadata:                       |
+|    name: otherapp-pod            |       |    name: otherapp-pod            |       |    name: otherapp-pod            |
+|    labels:                       |       |                                  |       |    labels:                       |
+|      app: otherapp               |       |                                  |       |      app: otherapp               |
+|      type: front-end             |       |                                  |       |      type: front-end             |
+|  spec:                           |       |  spec:                           |       |  spec:                           |
+|    containers:                   |   +   |    containers:                   |   =   |    containers:                   |
+|    - name: nginx-container       |       |    - name: nginx-container       |       |    - name: nginx-container       |
+|      image: nginx                |       |                                  |       |      image: nginx                |
+|      ports:                      |       |                                  |       |      ports:                      |
+|      - containerPort: 8080       |       |                                  |       |      - containerPort: 8080       |
+|                                  |       |      resources:                  |       |      resources:                  |
+|                                  |       |        requests:                 |       |        requests:                 |
+|                                  |       |          cpu: "100m"             |       |          cpu: "100m"             |
+|                                  |       |          memory: "128Mi"         |       |          memory: "128Mi"         |
+└──────────────────────────────────┘       └──────────────────────────────────┘       └──────────────────────────────────┘
+            base.yaml                                   patch.yaml                                 output.yaml
+            
+┌──────────────────────────────────┐
+|  user-dossier                    |
+|  ├─ base                         |
+|  |   ├─ kustomize.yaml           |
+|  |   └─ app.yaml                 |
+|  └─ overlays                     |
+|      ├─ dev                      |
+|      |   ├─ kustomize.yaml       |
+|      |   └─ patch.yaml           |
+|      ├─ stg                      |
+|      |   ├─ kustomize.yaml       |
+|      |   └─ patch.yaml           |
+|      └─ prd                      |
+|          ├─ kustomize.yaml       |
+|          └─ patch.yaml           |
+└──────────────────────────────────┘
+
+skaffold: build --> deploy images to the registry
+kustomize: build the manifest files --> deploy the manifests.
+
+During dev:
+  skaffold mainly:
+  - pulling the dependency images from the remote registry.
+  - build a sudo environment with the changes in the code
+  - push to the LOCAL registry.
+  kustomize does pretty much nothing.
+
+  And to spin up an environment, all you need to do is just skaffold dev.
+
+During the release:
+  skaffold mainly:
+  - pulling the dependency images from the remote registry
+  - build a sudo environment with the changes in the code
+  Seems like you'll have to push to the REMOTE registry yourself! (Soooo, what's the skaffold for?)
+  kustomize:
+  - get the image info
+  - apply patches from the overlay/dev or overlay/dev to the related base kustomize manifests
+  - push those manifest files to kubernetes
+  
+  I guess the new process will be:
+  - Build the image using skaffold. (skaffold build)
+  - Push image to docker. (docker build ... --> docker push ...)
+  - Update andromeda manifest. (git add . --> git commit --> git push)
+  - kubectl apply -k .
+
+Also, seems like people calling artifacts like the results of processing manifests, does it mean that manifests are the original deployment.yaml and configMap and kustomization files?
+
+
+After skaffold build, the images will be pushed to the local of the context that we define. Say, when we are using minikube, the images won't be pushed to our local machine docker registry, but it will be pushed to minikube registry. So eval $(minikube -p minikube docker-env) to check for the images there.
+
+=======================================================================================================================================================================================================
+
+env thingy in Pod
+
+env can be defined as:
+- name + value
+- name + valueFrom.fieldRef.fieldPath (like spec.something) [[** these spec.something are related to the Pod, not the Pod's container).
+- name + valueFrom.(other things)
+
+=======================================================================================================================================================================================================
+
+IP address
+
+To get IP Address, can either check for public IP address of a service, or the related Ingress.
+kubectl get svc -n cosmos -o wide
+kubectl get ingress -n cosmos
+
+=======================================================================================================================================================================================================
+
+How to check Deployment update history? (Question 8)
+
+Question 10?
+
+Question 13? How tf do you log PVC?
+
+Question 15? Test the nginx configuration for example using curl from a temporary nginx:alpine Pod.???
+
+Question 16 :/ doable?
+
+Question 17: how to create?
+
+18? the thing? 
+
+Oooh so curl nodeIP:nodePort to try connecting to the svc???
+
+
+
+
+To indent multiple lines using vim you should set the shiftwidth using :set shiftwidth=2. Then mark multiple lines using Shift v and the up/down keys.
+
+export do="--dry-run=client -o yaml"    # k create deploy nginx --image=nginx $do
+export now="--force --grace-period 0"   # k delete pod x $now
+export tmp="kubectl run tmp --image=nginx:alpine --restart=Never --rm -i"
+
+
+Makefile
+
+call temp pod:
+	k -n ${nspace} run tmp --image=nginx:alpine --restart=Never --rm -i -- curl ${epoint}
+
+helm -n (ns) install
+helm pull
+helm repo update
+helm upgrade (release bravo) bitnami/apache
+
+instead of deleting pod by pod for deployments: k -n moon rollout restart deploy web-moon
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
